@@ -61,8 +61,13 @@ public final class LoopbackAuthReceiver {
     // MARK: - Binding
 
     private func bind(port: UInt16) async -> Bool {
+        // Loopback only: the redirect always arrives from this machine's own browser, and
+        // a wildcard bind would expose the port — and the ability to kill an in-flight
+        // authorization — to the local network.
+        let parameters = NWParameters.tcp
+        parameters.requiredInterfaceType = .loopback
         guard let endpointPort = NWEndpoint.Port(rawValue: port),
-              let listener = try? NWListener(using: .tcp, on: endpointPort)
+              let listener = try? NWListener(using: parameters, on: endpointPort)
         else { return false }
 
         self.listener = listener

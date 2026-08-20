@@ -17,17 +17,27 @@ final class Clock {
 
     private(set) var now = Date()
     private var task: Task<Void, Never>?
+    // nonisolated(unsafe): written once in init, read once in deinit — deinit is not
+    // actor-isolated, and NotificationCenter removal is thread-safe.
+    private nonisolated(unsafe) var wakeObserver: (any NSObjectProtocol)?
 
     init() {
         start()
         // Sleeping through midnight would otherwise leave every date stale until the next
-        // tick, and waking is exactly when the user looks.
-        NotificationCenter.default.addObserver(
+        // tick, and waking is exactly when the user looks. Workspace notifications are
+        // posted on NSWorkspace's own center, not the default one.
+        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didWakeNotification,
             object: nil,
             queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.now = Date() }
+        }
+    }
+
+    deinit {
+        if let wakeObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver)
         }
     }
 

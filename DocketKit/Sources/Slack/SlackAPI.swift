@@ -79,7 +79,9 @@ public actor LiveSlackAPI: SlackAPI {
         do {
             let data = try await call(method: "conversations.info", tier: .lookup, parameters: ["channel": id])
             let info = try decode(SlackChannelPayload.self, from: data).channel?.asEntity
-            Log.slack.info("conversations.info \(id, privacy: .public) -> name=\(info?.name ?? "nil", privacy: .public) isDM=\(info?.isDirectMessage == true) user=\(info?.userID ?? "nil", privacy: .public)")
+            // Names and counterpart users are workplace-sensitive; only the channel id is
+            // worth having in a diagnostic log.
+            Log.slack.info("conversations.info \(id, privacy: .public) -> name=\(info?.name ?? "nil", privacy: .private) isDM=\(info?.isDirectMessage == true) user=\(info?.userID ?? "nil", privacy: .private)")
             return info
         } catch {
             // Not fatal — the thread still works, it just shows its channel id. Worth

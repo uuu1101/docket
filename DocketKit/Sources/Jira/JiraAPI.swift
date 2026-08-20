@@ -37,9 +37,17 @@ public struct JiraConfiguration: Sendable, Equatable {
               let apiToken, apiToken.isEmpty.not
         else { return nil }
 
-        let normalized = trimmed.hasPrefix("http") ? trimmed : "https://\(trimmed)"
+        // Basic credentials ride on every request, so only https is ever modelled: a
+        // pasted http:// address is upgraded, anything stranger is refused.
+        var normalized = trimmed
+        if normalized.lowercased().hasPrefix("http://") {
+            normalized = "https://" + normalized.dropFirst("http://".count)
+        } else if normalized.lowercased().hasPrefix("https://").not {
+            normalized = "https://\(normalized)"
+        }
         guard let url = URL(string: normalized.hasSuffix("/") ? String(normalized.dropLast()) : normalized),
-              url.host != nil
+              url.host != nil,
+              url.scheme?.lowercased() == "https"
         else { return nil }
 
         self.init(siteURL: url, email: email.trimmingCharacters(in: .whitespacesAndNewlines), apiToken: apiToken)
@@ -136,6 +144,20 @@ public struct LiveJiraAPI: JiraAPI {
     // MARK: - Transport
 
     private func get(path: String, query: [URLQueryItem]) async throws(JiraError) -> Data {
+        try await perform(request(path: path, query: query))
+    }
+
+    private func post(path: String, body: Data) async throws(JiraError) -> Data {
+        var request = try request(path: path, query: [])
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = body
+        return try await perform(request)
+    }
+
+    /// One URL construction and one header set for both verbs, so encoding rules and
+    /// failure classification cannot quietly diverge between reads and writes.
+    private func request(path: String, query: [URLQueryItem]) throws(JiraError) -> URLRequest {
         guard var components = URLComponents(
             url: configuration.siteURL.appendingPathComponent(path),
             resolvingAgainstBaseURL: false
@@ -148,40 +170,10 @@ public struct LiveJiraAPI: JiraAPI {
         request.setValue(configuration.authorizationHeader, forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.timeoutInterval = 20
-
-        let data: Data
-        let response: URLResponse
-        do {
-            (data, response) = try await session.data(for: request)
-        } catch {
-            throw .network(error.localizedDescription)
-        }
-
-        guard let http = response as? HTTPURLResponse else {
-            throw .network("Unexpected response")
-        }
-
-        switch http.statusCode {
-        case 200 ..< 300:
-            return data
-        case 401, 403:
-            throw .unauthorized
-        default:
-            throw .http(status: http.statusCode, message: Self.errorMessage(from: data))
-        }
+        return request
     }
 
-    private func post(path: String, body: Data) async throws(JiraError) -> Data {
-        guard let url = URL(string: configuration.siteURL.absoluteString + path) else { throw .invalidSite }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue(configuration.authorizationHeader, forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.httpBody = body
-        request.timeoutInterval = 20
-
+    private func perform(_ request: URLRequest) async throws(JiraError) -> Data {
         let data: Data
         let response: URLResponse
         do {
@@ -217,14 +209,22 @@ public struct LiveJiraAPI: JiraAPI {
         }
     }
 
-    /// Jira returns `{"errorMessages": [...]}` on most failures; fall back to raw text.
+    /// Jira scatters failure detail across `errorMessages` and a field-keyed `errors`
+    /// object — transition validators often fill only the latter, leaving `errorMessages`
+    /// empty. Both are read so a refusal always carries its reason.
     private static func errorMessage(from data: Data) -> String {
         struct Payload: Decodable {
             let errorMessages: [String]?
+            let errors: [String: String]?
         }
-        if let payload = try? JSONDecoder().decode(Payload.self, from: data),
-           let first = payload.errorMessages?.first {
+        guard let payload = try? JSONDecoder().decode(Payload.self, from: data) else { return "" }
+        if let first = payload.errorMessages?.first(where: { $0.isEmpty.not }) {
             return first
+        }
+        if let errors = payload.errors, errors.isEmpty.not {
+            return errors.sorted { $0.key < $1.key }
+                .map { "\($0.key): \($0.value)" }
+                .joined(separator: ", ")
         }
         return ""
     }

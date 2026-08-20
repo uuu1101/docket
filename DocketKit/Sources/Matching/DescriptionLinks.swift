@@ -18,7 +18,7 @@ public struct DescriptionLinks: Sendable, Equatable {
     }
 
     static func isFigma(_ url: URL) -> Bool {
-        guard let host = url.host?.lowercased() else { return false }
+        guard url.isWebURL, let host = url.host?.lowercased() else { return false }
         return host == "figma.com" || host.hasSuffix(".figma.com")
     }
 }
@@ -32,7 +32,7 @@ public extension DescriptionLinks {
         guard let document else { return [] }
         var found: [String] = []
         collect(from: document, into: &found)
-        return found.reduced().compactMap(URL.init(string:))
+        return found.reduced().compactMap(URL.init(string:)).filter(\.isWebURL)
     }
 
     private static func collect(from value: JSONValue, into found: inout [String]) {
@@ -71,5 +71,14 @@ extension String {
         var text = self
         while let last = text.last, ".,;:!?".contains(last) { text.removeLast() }
         return text
+    }
+}
+
+extension URL {
+    /// The only schemes content from a server may turn into something clickable. A
+    /// `file:` or `javascript:` link planted in a ticket description must go nowhere.
+    var isWebURL: Bool {
+        guard let scheme = scheme?.lowercased() else { return false }
+        return scheme == "https" || scheme == "http"
     }
 }

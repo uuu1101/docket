@@ -93,8 +93,11 @@ struct ADFBlocksView: View {
     private func text(_ spans: [ADFSpan]) -> Text {
         spans.reduce(Text("")) { partial, span in
             var attributed = AttributedString(span.text)
-            if span.isBold { attributed.inlinePresentationIntent = .stronglyEmphasized }
-            if span.isItalic { attributed.inlinePresentationIntent = .emphasized }
+            // An OptionSet: assigning twice would keep only the second mark.
+            var intent: InlinePresentationIntent = []
+            if span.isBold { intent.insert(.stronglyEmphasized) }
+            if span.isItalic { intent.insert(.emphasized) }
+            if intent.isEmpty == false { attributed.inlinePresentationIntent = intent }
             if span.isCode {
                 attributed.font = .caption.monospaced()
             }

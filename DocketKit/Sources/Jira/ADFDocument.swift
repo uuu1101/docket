@@ -159,9 +159,10 @@ public enum ADFDocument {
 
             case "inlineCard":
                 // A bare link card: show the address, since the title is not in the payload.
+                // Only a web URL may become clickable; anything else stays plain text.
                 if case let .object(attributes)? = fields["attrs"],
                    case let .string(url)? = attributes["url"] {
-                    spans.append(ADFSpan(text: url, link: URL(string: url)))
+                    spans.append(ADFSpan(text: url, link: URL(string: url).flatMap { $0.isWebURL ? $0 : nil }))
                 }
 
             case "emoji":
@@ -198,9 +199,12 @@ public enum ADFDocument {
             case "code": span.isCode = true
             case "underline": span.isUnderlined = true
             case "link":
+                // A `javascript:` or `file:` href planted in a description must not
+                // become clickable; the text still renders.
                 if case let .object(attributes)? = markFields["attrs"],
-                   case let .string(href)? = attributes["href"] {
-                    span.link = URL(string: href)
+                   case let .string(href)? = attributes["href"],
+                   let url = URL(string: href), url.isWebURL {
+                    span.link = url
                 }
             default: break
             }

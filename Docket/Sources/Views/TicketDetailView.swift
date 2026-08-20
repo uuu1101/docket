@@ -21,6 +21,9 @@ struct TicketDetailView: View {
     @State private var figmaFailure: String?
     @State private var transitions: [JiraTransition] = []
     @State private var comments: JiraComments?
+    /// Parsed once per ticket rather than in `body`: the computed property decodes and
+    /// walks the whole ADF document, and `body` re-evaluates on every clock tick.
+    @State private var descriptionBlocks: [ADFBlock] = []
     @State private var statusFailure: String?
     @State private var isTransitioning = false
     @State private var linkDraft = ""
@@ -32,9 +35,9 @@ struct TicketDetailView: View {
             VStack(alignment: .leading, spacing: 14) {
                 header
 
-                if ticket.descriptionBlocks.isEmpty == false {
+                if descriptionBlocks.isEmpty == false {
                     Divider()
-                    DescriptionView(blocks: ticket.descriptionBlocks, isCompact: isCompact)
+                    DescriptionView(blocks: descriptionBlocks, isCompact: isCompact)
                 }
 
                 if let comments, comments.comments.isEmpty == false {
@@ -49,12 +52,25 @@ struct TicketDetailView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityIdentifier("ticket_detail_container")
+        .onChange(of: ticket.descriptionData) {
+            descriptionBlocks = ticket.descriptionBlocks
+        }
         .task(id: ticket.key) {
             store.markSeen(ticket)
             statusFailure = nil
             comments = nil
-            transitions = await store.availableTransitions(for: ticket)
-            comments = await store.comments(for: ticket)
+            descriptionBlocks = ticket.descriptionBlocks
+            // The previous ticket's moves must not stay clickable on this one: transition
+            // ids are workflow-scoped, so one chosen for that ticket can apply cleanly —
+            // and wrongly — to this ticket.
+            transitions = []
+            isTransitioning = false
+            let found = await store.availableTransitions(for: ticket)
+            guard Task.isCancelled == false else { return }
+            transitions = found
+            let fetched = await store.comments(for: ticket)
+            guard Task.isCancelled == false else { return }
+            comments = fetched
         }
     }
 
@@ -293,14 +309,16 @@ private extension TicketDetailView {
         statusFailure = nil
         Task {
             let failure = await store.apply(transition, to: ticket)
-            isTransitioning = false
             if let failure {
                 statusFailure = settings.strings.statusChangeFailed(
                     settings.strings.jiraErrorMessage(failure)
                 )
             } else {
+                // Refetch before re-enabling the control, or the pre-move menu is
+                // briefly clickable and offers moves the new status no longer allows.
                 transitions = await store.availableTransitions(for: ticket)
             }
+            isTransitioning = false
         }
     }
 

@@ -36,6 +36,11 @@ public final class DashboardStore {
     /// Resolved once per launch rather than persisted, so adding the field in Jira takes
     /// effect on the next start instead of never.
     private var targetEndFieldID: String?
+    /// When the user moved each ticket, so a refresh that was already in flight cannot
+    /// revert the move with data fetched before it happened.
+    private var statusOverrides: [String: Date] = [:]
+    /// The seam tests replace; production always talks to the live client.
+    var makeJiraAPI: (JiraConfiguration) -> any JiraAPI = { LiveJiraAPI(configuration: $0) }
 
     public init(settings: AppSettings, container: ModelContainer) {
         self.settings = settings
@@ -96,7 +101,7 @@ public final class DashboardStore {
     /// issue and would cost one request per ticket per tick.
     public func availableTransitions(for ticket: Ticket) async -> [JiraTransition] {
         guard let configuration = settings.jiraConfiguration else { return [] }
-        let found = try? await LiveJiraAPI(configuration: configuration).transitions(issueKey: ticket.key)
+        let found = try? await makeJiraAPI(configuration).transitions(issueKey: ticket.key)
         return found ?? []
     }
 
@@ -105,13 +110,14 @@ public final class DashboardStore {
         guard let configuration = settings.jiraConfiguration else { return .notConfigured }
 
         do {
-            try await LiveJiraAPI(configuration: configuration)
+            try await makeJiraAPI(configuration)
                 .performTransition(issueKey: ticket.key, transitionID: transition.id)
         } catch {
             Log.jira.error("transition \(transition.id, privacy: .public) on \(ticket.key, privacy: .public) failed: \(String(describing: error), privacy: .public)")
             return error
         }
 
+        statusOverrides[ticket.key] = Date()
         ticket.statusName = transition.toStatusName
         ticket.statusCategory = transition.toStatusCategory
         // The user did this; flagging it as something they have not seen would be absurd.
@@ -130,7 +136,7 @@ public final class DashboardStore {
     /// moment it is fetched.
     public func comments(for ticket: Ticket) async -> JiraComments? {
         guard let configuration = settings.jiraConfiguration else { return nil }
-        return try? await LiveJiraAPI(configuration: configuration)
+        return try? await makeJiraAPI(configuration)
             .comments(issueKey: ticket.key, limit: Self.commentLimit)
     }
 
@@ -147,7 +153,7 @@ public final class DashboardStore {
         }
 
         let engine = SyncEngine(
-            jira: LiveJiraAPI(configuration: settings.jiraConfiguration ?? .placeholder),
+            jira: makeJiraAPI(settings.jiraConfiguration ?? .placeholder),
             slack: slack
         )
 
@@ -212,9 +218,15 @@ public final class DashboardStore {
     // MARK: - Refresh
 
     public func refresh(force: Bool) {
-        refreshTask?.cancel()
+        // Without force, a running sync is left alone. With force, it is cancelled and the
+        // new sync waits for it to unwind — the isSyncing guard would otherwise bounce the
+        // forced refresh off the very sync it just cancelled, fetching nothing.
+        guard force || isSyncing.not else { return }
+        let previous = refreshTask
+        previous?.cancel()
         refreshTask = Task { [weak self] in
-            await self?.performRefresh(force: force)
+            await previous?.value
+            await self?.performRefresh()
         }
     }
 
@@ -223,7 +235,7 @@ public final class DashboardStore {
         let minutes = settings.refreshMinutes
         autoRefreshTask = Task { [weak self] in
             while Task.isCancelled.not {
-                await self?.performRefresh(force: false)
+                await self?.performRefresh()
                 try? await Task.sleep(for: .seconds(Double(minutes) * 60))
             }
         }
@@ -236,7 +248,7 @@ public final class DashboardStore {
         refreshTask = nil
     }
 
-    private func performRefresh(force _: Bool) async {
+    private func performRefresh() async {
         guard isSyncing.not else { return }
         guard let configuration = settings.jiraConfiguration else {
             jiraState = .notConfigured
@@ -246,7 +258,7 @@ public final class DashboardStore {
         isSyncing = true
         defer { isSyncing = false }
 
-        let engine = SyncEngine(jira: LiveJiraAPI(configuration: configuration), slack: slackClient())
+        let engine = SyncEngine(jira: makeJiraAPI(configuration), slack: slackClient())
 
         // Jira and Slack fail independently: a broken Slack token must not blank the
         // ticket list, and vice versa. Neither failure clears the cache.
@@ -255,8 +267,11 @@ public final class DashboardStore {
         }
 
         do {
+            // Stamped before the request: a transition applied while it is in flight is
+            // newer than anything this response says about the ticket.
+            let fetchStarted = Date()
             let issues = try await engine.issues(jql: settings.jql, targetEndFieldID: targetEndFieldID)
-            apply(issues)
+            apply(issues, fetchedAt: fetchStarted)
             jiraState = .ok
         } catch {
             jiraState = .failed(settings.strings.jiraErrorMessage(error))
@@ -428,14 +443,19 @@ public final class DashboardStore {
 
     // MARK: - Persistence
 
-    func apply(_ issues: [JiraIssue]) {
+    func apply(_ issues: [JiraIssue], fetchedAt: Date = Date()) {
         var existing = Dictionary(tickets.map { ($0.key, $0) }, uniquingKeysWith: { first, _ in first })
 
         for issue in issues {
             if let ticket = existing.removeValue(forKey: issue.key) {
                 ticket.summary = issue.summary
-                ticket.statusName = issue.statusName
-                ticket.statusCategory = issue.statusCategory
+                // A move the user made after this response left the server is newer than
+                // the status it carries; overwriting would revert the move and flag the
+                // user's own change as unseen.
+                if hasStatusOverride(for: issue.key, since: fetchedAt).not {
+                    ticket.statusName = issue.statusName
+                    ticket.statusCategory = issue.statusCategory
+                }
                 ticket.priorityName = issue.priorityName
                 ticket.priorityRank = PriorityRank.value(for: issue.priorityName)
                 ticket.issueType = issue.issueType
@@ -468,17 +488,35 @@ public final class DashboardStore {
         }
 
         // Whatever the query no longer returns is no longer mine. Its threads go with it,
-        // by the cascade rule on the relationship.
-        for orphan in existing.values {
+        // by the cascade rule on the relationship. A ticket the user just moved is spared
+        // for this cycle — the stale response may exclude it only because it was fetched
+        // before the move; the next refresh judges it with fresh data.
+        for orphan in existing.values where hasStatusOverride(for: orphan.key, since: fetchedAt).not {
             context.delete(orphan)
         }
+
+        // An override has done its job once a response fetched after the move arrives.
+        statusOverrides = statusOverrides.filter { $0.value > fetchedAt }
 
         save()
         reloadFromStore()
     }
 
+    private func hasStatusOverride(for key: String, since fetchedAt: Date) -> Bool {
+        guard let movedAt = statusOverrides[key] else { return false }
+        return movedAt > fetchedAt
+    }
+
     private func applyDescription(_ description: JSONValue?, to ticket: Ticket) {
-        ticket.descriptionData = description.flatMap { try? JSONEncoder().encode($0) }
+        // Sorted keys make the encoding canonical, so the same description always
+        // produces the same bytes and the comparison below holds across launches.
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let encoded = description.flatMap { try? encoder.encode($0) }
+        // Same bytes, no write: reassigning identical data dirties the row every sync.
+        if ticket.descriptionData != encoded {
+            ticket.descriptionData = encoded
+        }
     }
 
     private func apply(_ links: DescriptionLinks, to ticket: Ticket) {

@@ -25,7 +25,10 @@ public struct SlackPermalink: Sendable, Equatable {
     }
 
     public init?(url: URL) {
-        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+        // The scheme is checked here, not only on the pasted-text path: links from a Jira
+        // description arrive through this initializer and end up clickable.
+        guard url.isWebURL,
+              let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
               let host = components.host?.lowercased(),
               host == "slack.com" || host.hasSuffix(".slack.com")
         else { return nil }

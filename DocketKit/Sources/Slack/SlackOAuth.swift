@@ -218,7 +218,13 @@ public struct PKCEChallenge: Sendable, Equatable {
     /// using only unreserved characters.
     static func randomToken() -> String {
         var bytes = [UInt8](repeating: 0, count: 32)
-        _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+        let status = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+        // An all-zero buffer would make the verifier and state predictable, so a failure
+        // falls back to the system generator rather than proceeding silently.
+        if status != errSecSuccess {
+            var generator = SystemRandomNumberGenerator()
+            bytes = (0 ..< 32).map { _ in UInt8.random(in: .min ... .max, using: &generator) }
+        }
         return Data(bytes).base64URLEncodedString
     }
 }

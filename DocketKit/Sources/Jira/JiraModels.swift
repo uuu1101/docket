@@ -261,6 +261,9 @@ struct JiraTransitionsResponse: Decodable {
 
         struct Field: Decodable {
             let required: Bool?
+            /// The human-readable label ("Resolution"), because the map is keyed by raw
+            /// field ids ("customfield_10104") that mean nothing in a refusal message.
+            let name: String?
         }
 
         var asEntity: JiraTransition? {
@@ -273,7 +276,10 @@ struct JiraTransitionsResponse: Decodable {
                     jiraKey: to?.statusCategory?.key ?? "",
                     statusName: statusName
                 ),
-                requiredFields: (fields ?? [:]).filter { $0.value.required == true }.keys.sorted()
+                requiredFields: (fields ?? [:])
+                    .filter { $0.value.required == true }
+                    .map { $0.value.name ?? $0.key }
+                    .sorted()
             )
         }
     }
