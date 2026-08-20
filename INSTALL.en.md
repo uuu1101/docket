@@ -20,9 +20,10 @@ Figma files and pull requests attached to them — in one place.
 4. Launch it. A checklist icon appears in your menu bar.
 
 > **Skip step 3 and macOS says the app "is damaged and can't be opened".**
-> It is not damaged. This build is for internal use and is not notarized by Apple, and that
-> is the message macOS shows for any app it has not been asked to trust. The command above
-> only clears the "downloaded from the internet" flag.
+> It is not damaged. This build is not notarized by Apple, and that is the message macOS
+> shows for any app it has not been asked to trust. The command above only clears the
+> "downloaded from the internet" flag. Building from source (see the README) skips this
+> step entirely.
 
 **Keep the app in Applications.** Run it from Downloads and "launch at login" will remember
 that path, so the feature breaks quietly the moment you tidy the folder up.
@@ -45,8 +46,8 @@ optional** — everything else keeps working without them.
 
 Settings → **Slack** → click **Connect Slack** → approve in your browser.
 
-There is no token to create. The app is already registered in the workspace, so approving is
-all it takes. Your browser will show `Docket is connected` when it is done.
+There is no token to create. The Slack integration ships inside the app, so approving in
+the browser is all it takes. It will show `Docket is connected` when it is done.
 
 > If your workspace requires admin approval for apps, the request goes to an admin first.
 > Pasting thread links works without connecting too — the card keeps just the link, without
@@ -97,7 +98,7 @@ tickets to show, and **launch at login**.
 | Symptom | Cause and fix |
 |---|---|
 | "is damaged and can't be opened" | Step 3 of the install was skipped. Run the `xattr` command |
-| macOS asks for keychain access after an update | Expected for an internal build. Choose **Always Allow** |
+| macOS asks for keychain access after an update | Expected for a build that is not notarized. Choose **Always Allow** |
 | No pull request buttons | The ticket key is in neither the title nor the branch name, or the token cannot reach the repository |
 | A `SAML enforcement` error from GitHub | Open your token list, click `Configure SSO` and authorize the organisation |
 | Slack threads never attach | Settings → Slack → **Disconnect**, then connect again |

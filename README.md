@@ -1,9 +1,14 @@
 # Docket
 
-메뉴바에 상주하는 macOS 대시보드. 나에게 할당된 Jira 티켓과 그 티켓을 언급한 Slack
-스레드를 한 곳에서 본다.
+메뉴바에 상주하는 macOS 대시보드. 나에게 할당된 Jira 티켓과, 그 티켓에 얽힌 Slack
+스레드·PR·Figma·코멘트를 한 곳에서 보고, 상태 변경까지 그 자리에서 끝낸다.
+
+빌드 없이 설치만 하려면 [INSTALL.md](INSTALL.md)([English](INSTALL.en.md))를 보면 된다.
+라이선스는 [MIT](LICENSE).
 
 ## 실행
+
+[Tuist](https://tuist.dev)가 필요하다(`brew install tuist` 또는 `mise install tuist`).
 
 ```bash
 tuist generate          # Docket.xcworkspace 생성
@@ -51,13 +56,17 @@ PR 버튼을 쓰려면 필요하다. 안 넣으면 그 부분만 비고 나머�
    비공개 저장소를 읽으려면 `repo` 권한이 필요하다.
 2. 앱 설정 → GitHub 탭에 토큰과 저장소(`owner/repo`)를 넣고 **연결 테스트**
 
-티켓 키가 **PR 제목이나 본문**에 있어야 찾는다. 브랜치명에만 있으면 GitHub 검색이
-색인하지 않아 잡히지 않는다.
+티켓 키가 **PR 제목이나 브랜치명**에 있으면 찾는다. 지정한 저장소의 최근 PR 목록을
+한 번 받아와 모든 티켓과 맞춰보는 방식이라, 토큰 권한도 그 저장소들로 한정된다.
 
 ### Slack
 
-`search.messages`는 **user token 전용**이다. 봇 토큰으로는 호출되지 않는다.
+스레드는 **user token**으로 읽는다 — 봇을 채널에 초대할 필요 없이 본인 권한 그대로다.
 인증은 PKCE OAuth로 한다 — client secret이 없으므로 백엔드도 필요 없다.
+
+저장소에 기본 Slack 앱의 Client ID가 들어 있어 **대부분은 설정 → Slack 탭 → Slack
+연결만 누르면 된다.** 워크스페이스 정책이 그 앱을 막거나 직접 만든 앱을 쓰고 싶을
+때만 아래 절차를 따른다.
 
 1. https://api.slack.com/apps → **Create New App** → **From a manifest** →
    워크스페이스 선택 → `slack-app-manifest.yml` 붙여넣기.
@@ -114,10 +123,10 @@ Slack을 설정하지 않아도 Jira 대시보드는 정상 동작한다.
   상세 화면의 **Figma에서 열기** 버튼이 되고, Slack 메시지 링크는 스레드로 자동 연결된다.
   기존 Jira 조회에 `description` 필드를 얹은 것뿐이라 **API 호출은 늘지 않는다.** 링크
   마크, 인라인 카드, 본문에 그냥 붙여넣은 주소를 모두 인식한다.
-- **연결된 PR**: GitHub 검색으로 티켓 키가 제목이나 본문에 있는 PR을 찾아 상세 화면에
-  버튼으로 띄운다. 설정 → GitHub에 personal access token과 조직을 넣어야 한다.
-  Jira 개발 패널(`dev-status`)도 시도했지만 **개수만 알려주고 PR의 제목·URL은 내려주지
-  않아** 쓸 수 없었다.
+- **연결된 PR**: 지정한 저장소의 최근 PR 중 티켓 키가 제목이나 브랜치명에 있는 것을
+  찾아 상세 화면에 버튼으로 띄운다. 설정 → GitHub에 personal access token과
+  저장소(`owner/repo`)를 넣어야 한다. Jira 개발 패널(`dev-status`)도 시도했지만
+  **개수만 알려주고 PR의 제목·URL은 내려주지 않아** 쓸 수 없었다.
 - **Figma 링크**: 자동 감지가 없거나 다른 걸 쓰고 싶으면 직접 넣는다. 직접 넣은 링크가
   우선하고, 지우면 다시 자동 감지로 돌아간다.
 - **스레드 삭제는 출처에 따라 다르다**: 직접 붙여넣은 스레드는 완전히 삭제된다. Jira
@@ -143,9 +152,9 @@ Slack을 설정하지 않아도 Jira 대시보드는 정상 동작한다.
 DocketKit/          로직 전부 — 앱을 띄우지 않고 테스트한다
   Core/               언어·문자열·에러·상태 분류
   Credentials/        Keychain
-  Jira/               REST v3 (/rest/api/3/search/jql)
-  Slack/              search.messages, conversations.replies, 레이트 리미터
-  Matching/           쿼리 생성, 답글→루트 복원, 중복 제거·승격
+  Jira/               REST v3 — 조회·전환·코멘트, ADF 렌더링
+  Slack/              PKCE OAuth, conversations.replies, 레이트 리미터
+  Matching/           설명 속 링크 추출, 답글→루트 복원, 중복 제거
   Store/              SwiftData 모델, 동기화 엔진, 대시보드 스토어
 Docket/             SwiftUI — 팝오버와 윈도우가 같은 리스트를 공유
 ```
