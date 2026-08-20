@@ -47,6 +47,12 @@ let project = Project(
                 // Not a secret: PKCE means no client secret ships with the app.
                 // Paste the client ID from api.slack.com here, then run `tuist generate`.
                 "SlackClientID": "11863180049027.11863221460355",
+                // The https page Slack redirects to; it bounces the browser back to the
+                // app's localhost receiver. Required for public distribution — Slack
+                // refuses to enable it while any redirect URL is plain http. Leave empty
+                // when pairing the build with a personal Slack app that registers the
+                // localhost redirects directly.
+                "SlackRedirectURL": "https://uuu1101.github.io/docket/slack-callback/",
             ]),
             sources: ["Docket/Sources/**"],
             resources: ["Docket/Resources/**"],

@@ -112,6 +112,14 @@ Only if Slack demands a `client_secret` for renewal, enter it under Slack tab �
 Do not press "Install to Workspace" on the app dashboard — the OAuth flow in step 4
 installs it.
 
+**Redirects for public distribution**: Slack requires every redirect URL to be https
+before public distribution can be enabled. The distributed app therefore registers the
+static page in `docs/slack-callback/` (hosted on GitHub Pages) and carries its address in
+`SlackRedirectURL` in `Project.swift`. The page just reads the loopback port off the
+state's suffix and bounces the browser to `http://localhost:<port>`, storing nothing.
+Leave `SlackRedirectURL` empty and the browser comes straight back to localhost — the
+combination a personal app made from the manifest uses.
+
 The token carries your own permissions, so only public channels plus the private channels
 and DMs you are in can be read. If OAuth is impossible in your environment, an `xoxp-`
 token can be entered directly under Slack tab → **Advanced**.

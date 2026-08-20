@@ -100,6 +100,13 @@ Keychain에만 저장되며 앱 바이너리에는 들어가지 않는다.
 
 대시보드의 "Install to Workspace"는 누르지 않는다 — 4단계의 OAuth 흐름이 설치까지 한다.
 
+**공개 배포(public distribution)용 리다이렉트**: Slack은 공개 배포를 켜기 전 모든
+리다이렉트 URL이 https이길 요구한다. 그래서 배포용 앱은 `docs/slack-callback/`의 정적
+페이지(GitHub Pages로 호스팅)를 리다이렉트로 등록하고, 그 주소를 `Project.swift`의
+`SlackRedirectURL`에 넣는다. 페이지는 state 끝에 실린 포트를 읽어 브라우저를 그대로
+`http://localhost:포트`로 되돌려보낼 뿐, 아무것도 저장하지 않는다. `SlackRedirectURL`을
+비우면 기존처럼 localhost로 직접 돌아온다 — 위 manifest로 만든 개인 앱은 그 조합을 쓴다.
+
 토큰은 본인 권한 그대로라 공개 채널 + 본인이 속한 비공개 채널/DM만 검색된다.
 OAuth를 쓸 수 없는 환경이라면 Slack 탭의 **고급**에서 `xoxp-` 토큰을 직접 넣을 수도 있다.
 

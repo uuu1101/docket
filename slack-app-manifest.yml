@@ -2,6 +2,11 @@
 #
 # api.slack.com/apps -> Create New App -> From a manifest -> paste this file.
 #
+# This manifest registers the localhost redirects, which is right for a personal app:
+# build with `SlackRedirectURL` empty in Project.swift and the browser comes straight
+# back. A publicly distributed app must register an https relay page instead (Slack
+# refuses public distribution over http) — see docs/slack-callback/ and the README.
+#
 # Slack has been observed to drop `oauth_config.redirect_urls` when they are http://localhost,
 # so after creating the app, open OAuth & Permissions and confirm PKCE is on and the three
 # redirect URLs are listed. Add them by hand if they are missing.

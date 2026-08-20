@@ -79,6 +79,14 @@ public struct SlackOAuth: Sendable {
         "http://localhost:\(port)/slack/callback"
     }
 
+    /// The state a distributed app sends: the random token with the loopback port as a
+    /// suffix. Slack refuses public distribution while any redirect URL is plain http, so
+    /// the browser goes to an https relay page instead — and that page learns which port
+    /// to bounce back to from the state, the only value Slack passes through untouched.
+    public static func relayState(random: String, port: UInt16) -> String {
+        "\(random).\(port)"
+    }
+
     public let clientID: String
     /// Slack's own docs disagree on whether renewing a PKCE token needs a secret, so it is
     /// optional: the app tries without one and only asks for it if Slack insists.

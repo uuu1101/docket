@@ -138,6 +138,14 @@ public final class AppSettings {
         (Bundle.main.object(forInfoDictionaryKey: "SlackClientID") as? String) ?? ""
     }
 
+    /// The https relay page registered on the distributed Slack app, which bounces the
+    /// browser back to the loopback receiver. Empty means the build is paired with a
+    /// personal Slack app that has the localhost redirects registered directly. Set it in
+    /// `Project.swift` under the `SlackRedirectURL` Info.plist key.
+    public var slackRedirectURL: String {
+        (Bundle.main.object(forInfoDictionaryKey: "SlackRedirectURL") as? String) ?? ""
+    }
+
     public func applySlackCredentials(_ credentials: SlackCredentials) {
         slackUserToken = credentials.userToken
         slackTokenExpiresAt = credentials.expiresAt

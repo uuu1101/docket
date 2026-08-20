@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Docket — connecting Slack</title>
+  <!--
+    Slack only enables public distribution for apps whose redirect URLs are all https,
+    and a desktop app's loopback receiver cannot be https. So Slack redirects here, and
+    this page bounces the browser — query string untouched — to the localhost port the
+    app encoded as the state's suffix. Nothing is stored, logged, or sent anywhere else.
+  -->
+  <style>
+    body {
+      font: 15px/1.5 -apple-system, system-ui, sans-serif;
+      display: flex; align-items: center; justify-content: center;
+      min-height: 90vh; margin: 0; color: #333; background: #fafafa;
+    }
+    main { text-align: center; padding: 2rem; }
+    h1 { font-size: 1.2rem; }
+    p { color: #666; }
+    @media (prefers-color-scheme: dark) {
+      body { color: #ddd; background: #1e1e1e; }
+      p { color: #aaa; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Connecting Docket…</h1>
+    <p id="detail">Handing the sign-in back to the app on this Mac.</p>
+  </main>
+  <script>
+    (function () {
+      var params = new URLSearchParams(location.search);
+      var state = params.get("state") || "";
+      // Only the app's own fixed ports; anything else does not get a redirect.
+      var match = /\.(53682|53683|53684)$/.exec(state);
+      if (!match) {
+        document.getElementById("detail").textContent =
+          "This page only forwards Slack sign-ins started from the Docket app. " +
+          "Go back to Docket and press Connect Slack again.";
+        return;
+      }
+      location.replace("http://localhost:" + match[1] + "/slack/callback?" + params.toString());
+    })();
+  </script>
+</body>
+</html>

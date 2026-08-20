@@ -381,3 +381,19 @@ struct TokenRenewalTests {
         await #expect(throws: (any Error).self) { try await store.validToken() }
     }
 }
+
+@Suite("Relay redirect state")
+struct RelayStateTests {
+    @Test("The relay state carries the loopback port as its suffix")
+    func carriesPort() {
+        #expect(SlackOAuth.relayState(random: "abc-123_x", port: 53683) == "abc-123_x.53683")
+    }
+
+    @Test("The random part survives untouched, so the exact-match check still holds")
+    func randomPartIntact() {
+        let random = PKCEChallenge.randomToken()
+        let state = SlackOAuth.relayState(random: random, port: 53682)
+        #expect(state.hasPrefix(random))
+        #expect(state.hasSuffix(".53682"))
+    }
+}

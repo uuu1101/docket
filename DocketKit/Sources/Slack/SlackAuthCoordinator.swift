@@ -68,10 +68,16 @@ public final class SlackAuthCoordinator {
 
         do {
             let port = try await receiver.start(ports: SlackOAuth.redirectPorts)
-            let redirectURI = SlackOAuth.redirectURI(port: port)
             let challenge = PKCEChallenge.random()
             // Ties the redirect back to this attempt, so another tab's callback cannot land here.
-            let state = PKCEChallenge.randomToken()
+            let random = PKCEChallenge.randomToken()
+
+            // A distributed app can only register https redirects, so the browser goes to
+            // the relay page, which reads the port off the state and bounces back here. A
+            // build paired with a personal app comes straight back to localhost.
+            let relay = settings.slackRedirectURL.trimmingCharacters(in: .whitespacesAndNewlines)
+            let redirectURI = relay.isEmpty ? SlackOAuth.redirectURI(port: port) : relay
+            let state = relay.isEmpty ? random : SlackOAuth.relayState(random: random, port: port)
 
             let oauth = SlackOAuth(clientID: clientID)
             let authorizeURL = try oauth.authorizeURL(
