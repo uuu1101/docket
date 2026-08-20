@@ -1,0 +1,40 @@
+# Slack app configuration for Docket.
+#
+# api.slack.com/apps -> Create New App -> From a manifest -> paste this file.
+#
+# Slack has been observed to drop `oauth_config.redirect_urls` when they are http://localhost,
+# so after creating the app, open OAuth & Permissions and confirm PKCE is on and the three
+# redirect URLs are listed. Add them by hand if they are missing.
+#
+# Never opt into token rotation. It cannot be undone, and a rotated token can only be renewed
+# with a client secret that this app does not carry.
+#
+# PKCE is on so the app needs no client secret, which is what lets Slack accept the
+# loopback redirect URLs below. Token rotation stays off: renewing a rotated token
+# requires a client secret, and a keyless desktop client has none.
+display_information:
+  name: Docket
+  description: A macOS dashboard for your assigned Jira tickets and the Slack threads about them.
+
+oauth_config:
+  pkce_enabled: true
+  redirect_urls:
+    - http://localhost:53682/slack/callback
+    - http://localhost:53683/slack/callback
+    - http://localhost:53684/slack/callback
+  scopes:
+    user:
+      # Reads reply count, participants and last activity for an attached thread. Each
+      # conversation type needs its own history scope.
+      - channels:history
+      - groups:history
+      - im:history
+      - mpim:history
+      # Turns user IDs into display names.
+      - users:read
+      # Resolves the channel name of an attached thread.
+      - channels:read
+      - groups:read
+
+settings:
+  token_rotation_enabled: false

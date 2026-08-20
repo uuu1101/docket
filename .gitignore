@@ -1,0 +1,12 @@
+# Tuist generates these from Project.swift; only the manifests belong in the repo.
+Derived/
+*.xcodeproj
+*.xcworkspace
+
+# Build output
+DerivedData/
+build/
+*.dmg
+
+.DS_Store
+dist/
