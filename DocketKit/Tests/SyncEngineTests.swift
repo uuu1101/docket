@@ -33,6 +33,11 @@ struct UnusedJiraAPI: JiraAPI {
     func account() async throws(JiraError) -> JiraAccount { JiraAccount(accountID: "a", displayName: "d") }
     func issues(jql: String, maxResults: Int, extraFieldID: String?) async throws(JiraError) -> [JiraIssue] { [] }
     func fieldID(named name: String) async throws(JiraError) -> String? { nil }
+    func transitions(issueKey: String) async throws(JiraError) -> [JiraTransition] { [] }
+    func performTransition(issueKey: String, transitionID: String) async throws(JiraError) {}
+    func comments(issueKey: String, limit: Int) async throws(JiraError) -> JiraComments {
+        JiraComments(comments: [], total: 0)
+    }
 }
 
 @Suite("Fetching an attached thread")

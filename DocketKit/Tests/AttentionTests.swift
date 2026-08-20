@@ -125,6 +125,59 @@ struct AttentionTests {
         #expect(ticket.needsAttention == false)
     }
 
+    @Test("A ticket never opened reads as new")
+    func neverOpenedIsNew() throws {
+        let store = try makeStore()
+        store.apply([issue(key: "APP-1")])
+
+        #expect(try #require(store.tickets.first).attention == .new)
+    }
+
+    @Test("A move after it was opened reads as updated")
+    func movedAfterOpeningIsUpdated() throws {
+        let store = try makeStore()
+        store.apply([issue(key: "APP-1", status: "진행 중")])
+        let ticket = try #require(store.tickets.first)
+        store.markSeen(ticket)
+
+        store.apply([issue(key: "APP-1", status: "READY FOR QA")])
+        #expect(ticket.attention == .updated)
+    }
+
+    @Test("An opened ticket that has not moved carries no badge")
+    func openedAndUnchangedHasNoBadge() throws {
+        let store = try makeStore()
+        store.apply([issue(key: "APP-1")])
+        let ticket = try #require(store.tickets.first)
+        store.markSeen(ticket)
+
+        store.apply([issue(key: "APP-1")])
+        #expect(ticket.attention == nil)
+    }
+
+    @Test("Unread replies alone leave the badge off, since the thread count shows them")
+    func unreadRepliesAreNotABadge() throws {
+        let store = try makeStore()
+        store.apply([issue(key: "APP-1")])
+        let ticket = try #require(store.tickets.first)
+        store.markSeen(ticket)
+        store.upsert(snapshot(replies: 3), into: ticket)
+
+        #expect(ticket.attention == nil)
+        // The menu bar still counts it: the work is unseen even if the row says so elsewhere.
+        #expect(ticket.needsAttention)
+    }
+
+    @Test("New wins over a reply on a ticket that was never opened")
+    func newWinsOverReplies() throws {
+        let store = try makeStore()
+        store.apply([issue(key: "APP-1")])
+        let ticket = try #require(store.tickets.first)
+        store.upsert(snapshot(replies: 2), into: ticket)
+
+        #expect(ticket.attention == .new)
+    }
+
     @Test("The count covers every ticket, not just the first")
     func countsEveryTicket() throws {
         let store = try makeStore()

@@ -7,17 +7,15 @@ import DocketKit
 
 struct TicketRowView: View {
     @Environment(AppSettings.self) private var settings
+    @Environment(Clock.self) private var clock
 
     let ticket: Ticket
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 5) {
-                if ticket.needsAttention {
-                    Circle()
-                        .fill(Color.accentColor)
-                        .frame(width: 6, height: 6)
-                        .accessibilityIdentifier("ticket_badge_attention")
+                if let attention = ticket.attention {
+                    AttentionBadge(attention: attention)
                 }
                 StatusBadge(ticket: ticket)
             }
@@ -39,7 +37,7 @@ struct TicketRowView: View {
                     TargetEndBadge(date: targetEnd)
                 }
 
-                Text(settings.relativeTime.string(for: ticket.updatedAt))
+                Text(settings.relativeTime.string(for: ticket.updatedAt, relativeTo: clock.now))
                     .font(.caption)
                     .foregroundStyle(.tertiary)
 

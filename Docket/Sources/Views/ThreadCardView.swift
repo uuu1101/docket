@@ -10,6 +10,7 @@ import DocketKit
 struct ThreadCardView: View {
     @Environment(AppSettings.self) private var settings
     @Environment(DashboardStore.self) private var store
+    @Environment(Clock.self) private var clock
     @Environment(\.openURL) private var openURL
 
     let thread: SlackThread
@@ -82,7 +83,7 @@ struct ThreadCardView: View {
 
             Spacer(minLength: 0)
 
-            Text(settings.relativeTime.string(for: thread.lastActivityAt))
+            Text(settings.relativeTime.string(for: thread.lastActivityAt, relativeTo: clock.now))
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -111,7 +112,10 @@ struct ThreadCardView: View {
                 .foregroundStyle(.secondary)
 
             if let author = thread.lastReplyAuthorName ?? thread.rootAuthorName.nilWhenEmpty {
-                Text(settings.strings.lastActivity(author, settings.relativeTime.string(for: thread.lastActivityAt)))
+                Text(settings.strings.lastActivity(
+                    author,
+                    settings.relativeTime.string(for: thread.lastActivityAt, relativeTo: clock.now)
+                ))
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)

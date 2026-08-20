@@ -39,11 +39,14 @@ struct TicketListView: View {
 
 private struct FilterBar: View {
     @Environment(AppSettings.self) private var settings
+    @Environment(DashboardStore.self) private var store
 
     @Binding var filter: TicketFilter
     let tickets: [Ticket]
 
     var body: some View {
+        @Bindable var settings = settings
+
         HStack(spacing: 8) {
             Menu {
                 Button(settings.strings.filterAll) { filter.statusCategory = nil }
@@ -74,6 +77,22 @@ private struct FilterBar: View {
             .disabled(priorityNames.isEmpty)
             .accessibilityIdentifier("dashboard_dropdown_priority")
 
+            // Last of the three: the local filters narrow what arrived, this one decides
+            // what arrives at all, so it reads as the outermost of the set.
+            Menu {
+                ForEach(TicketQuery.allCases) { query in
+                    Button(settings.strings.ticketQueryName(query)) { settings.query = query }
+                }
+            } label: {
+                Text(settings.strings.ticketQueryShortName(settings.query))
+                    .font(.caption)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .onChange(of: settings.query) { store.refresh(force: true) }
+            .help(settings.strings.ticketQueryLabel)
+            .accessibilityIdentifier("dashboard_dropdown_ticket_query")
+
             Spacer(minLength: 4)
 
             HStack(spacing: 4) {
@@ -88,7 +107,7 @@ private struct FilterBar: View {
             .padding(.horizontal, 6)
             .padding(.vertical, 3)
             .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 5))
-            .frame(maxWidth: 160)
+            .frame(maxWidth: 120)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)

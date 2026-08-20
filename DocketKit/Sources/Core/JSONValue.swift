@@ -8,7 +8,7 @@ import Foundation
 /// Jira v3 returns an issue description as an Atlassian Document Format document, whose
 /// node types grow over time. Walking it untyped keeps link extraction working when
 /// Atlassian adds a node this app has never heard of.
-public enum JSONValue: Decodable, Sendable, Equatable {
+public enum JSONValue: Codable, Sendable, Equatable {
     case string(String)
     case number(Double)
     case bool(Bool)
@@ -30,6 +30,18 @@ public enum JSONValue: Decodable, Sendable, Equatable {
             self = .array(value)
         } else {
             self = .object(try container.decode([String: JSONValue].self))
+        }
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case let .string(value): try container.encode(value)
+        case let .number(value): try container.encode(value)
+        case let .bool(value): try container.encode(value)
+        case .null: try container.encodeNil()
+        case let .array(value): try container.encode(value)
+        case let .object(value): try container.encode(value)
         }
     }
 }

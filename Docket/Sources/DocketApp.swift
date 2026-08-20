@@ -12,6 +12,7 @@ struct DocketApp: App {
     @State private var store: DashboardStore
     @State private var slackAuth: SlackAuthCoordinator
     @State private var loginItem = LoginItem()
+    @State private var clock = Clock()
 
     init() {
         let settings = AppSettings()
@@ -29,6 +30,7 @@ struct DocketApp: App {
             PopoverView()
                 .environment(settings)
                 .environment(store)
+                .environment(clock)
         } label: {
             Image(nsImage: MenuBarIcon.image(count: store.ticketsNeedingAttention))
         }
@@ -38,6 +40,7 @@ struct DocketApp: App {
             DashboardWindowView()
                 .environment(settings)
                 .environment(store)
+                .environment(clock)
         }
         .defaultSize(width: 1_040, height: 660)
         .windowResizability(.contentMinSize)

@@ -69,6 +69,46 @@ public struct Strings: Sendable, Equatable {
     public var retry: String { t("다시 시도", "Retry") }
     // MARK: - Ticket
 
+    public var changeStatus: String { t("상태 변경", "Change status") }
+    public var statusChangeUnavailable: String {
+        t("이 티켓의 상태를 바꿀 권한이 없습니다.", "You cannot change this ticket's status.")
+    }
+
+    public func statusChangeFailed(_ detail: String) -> String {
+        t("상태를 바꾸지 못했습니다: \(detail)", "Could not change the status: \(detail)")
+    }
+
+    public func transitionNeedsJira(_ fields: String) -> String {
+        t(
+            "이 전환은 Jira에서 입력해야 하는 항목이 있습니다: \(fields)",
+            "This move needs fields only Jira can ask for: \(fields)"
+        )
+    }
+
+    /// Left untranslated: the badge is three characters wide and reads the same either way.
+    public var newBadge: String { "NEW" }
+    public var updatedBadge: String { t("업데이트", "UPDATED") }
+
+    /// Names both counts when automation or an older page is left out, so a short list under a
+    /// large number does not read as a bug.
+    public func commentCount(shown: Int, total: Int) -> String {
+        if shown == total {
+            return t("코멘트 \(total)개", total == 1 ? "1 comment" : "\(total) comments")
+        }
+        return t("코멘트 \(shown)개 (전체 \(total)개)", "\(shown) of \(total) comments")
+    }
+
+    public var seeAllComments: String { t("전체 보기", "See all") }
+
+    public var descriptionLabel: String { t("설명", "Description") }
+
+    public func unsupportedContent(_ kind: String) -> String {
+        switch kind {
+        case "table": t("표는 Jira에서 확인하세요", "Open in Jira to see the table")
+        default: t("이미지는 Jira에서 확인하세요", "Open in Jira to see the image")
+        }
+    }
+
     public var openInJira: String { t("Jira에서 열기", "Open in Jira") }
     /// The number carries the meaning, so it goes inside the button rather than beside it.
     public func openPullRequest(_ number: String) -> String {
@@ -238,16 +278,30 @@ public struct Strings: Sendable, Equatable {
 
     public var ticketQueryLabel: String { t("표시할 티켓", "Tickets to show") }
 
+    /// Short enough for the filter bar, where three menus share 400pt.
+    public func ticketQueryShortName(_ query: TicketQuery) -> String {
+        switch query {
+        // One structure across the set — how the ticket relates to me — so the menu button
+        // reads consistently whichever is chosen.
+        case .assignedOpen: t("내게 할당", "Assigned")
+        case .assignedOpenOrRecentlyDone: t("내게 할당 +7일", "Assigned +7d")
+        case .reportedOpen: t("내가 보고", "Reported")
+        case .watching: t("내가 워치", "Watching")
+        case .custom: t("직접 입력", "Custom")
+        }
+    }
+
     public func ticketQueryName(_ query: TicketQuery) -> String {
         switch query {
         case .assignedOpen:
             t("내게 할당된 미완료", "Assigned to me, open")
         case .assignedOpenOrRecentlyDone:
-            t("내게 할당 · 최근 완료 7일 포함", "Assigned to me, plus done in the last 7 days")
+            t("내게 할당된 미완료 + 최근 7일 완료", "Assigned to me, open or done in the last 7 days")
         case .reportedOpen:
             t("내가 보고한 미완료", "Reported by me, open")
         case .watching:
-            t("워치 중", "Watched by me")
+            // The query filters out done work here too, so the name says so.
+            t("내가 워치하는 미완료", "Watched by me, open")
         case .custom:
             t("직접 입력", "Custom JQL")
         }

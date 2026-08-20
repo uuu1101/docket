@@ -25,6 +25,9 @@ public final class Ticket {
     /// Pull requests found on GitHub, encoded rather than modelled: a handful of links per
     /// ticket does not earn its own entity, and a new entity means a migration.
     public var pullRequestsData: Data?
+    /// The Jira description as JSON. A few kilobytes per ticket, and it arrives on the same
+    /// request the ticket list already makes.
+    public var descriptionData: Data?
     /// When Slack was last searched for this ticket. `nil` means never.
     public var slackSyncedAt: Date?
     /// Found in the Jira description. Replaced whenever the description changes.
@@ -67,6 +70,13 @@ public final class Ticket {
 
     public var browseURL: URL? { URL(string: browseURLString) }
 
+    public var descriptionBlocks: [ADFBlock] {
+        guard let descriptionData,
+              let document = try? JSONDecoder().decode(JSONValue.self, from: descriptionData)
+        else { return [] }
+        return ADFDocument.blocks(from: document)
+    }
+
     public var pullRequests: [PullRequestLink] {
         get {
             guard let pullRequestsData else { return [] }
@@ -107,6 +117,21 @@ public final class Ticket {
     public var needsAttention: Bool {
         isUnseen || hasUnseenStatusChange || unreadReplyCount > 0
     }
+
+    /// Why the row is marked, or nothing. One reason at a time, because the row shows one
+    /// badge; unread Slack replies are left out because the thread count already carries them.
+    public var attention: TicketAttention? {
+        if isUnseen { return .new }
+        return hasUnseenStatusChange ? .updated : nil
+    }
+}
+
+/// What a row's badge announces.
+public enum TicketAttention: Sendable, Equatable {
+    /// Never opened, so nothing on it has been read yet.
+    case new
+    /// Moved along the workflow since it was last opened.
+    case updated
 }
 
 @Model

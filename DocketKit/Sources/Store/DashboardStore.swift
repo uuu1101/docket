@@ -90,6 +90,50 @@ public final class DashboardStore {
         return lhs.updatedAt > rhs.updatedAt
     }
 
+    // MARK: - Status
+
+    /// Fetched when a ticket is opened rather than on every refresh: the list depends on the
+    /// issue and would cost one request per ticket per tick.
+    public func availableTransitions(for ticket: Ticket) async -> [JiraTransition] {
+        guard let configuration = settings.jiraConfiguration else { return [] }
+        let found = try? await LiveJiraAPI(configuration: configuration).transitions(issueKey: ticket.key)
+        return found ?? []
+    }
+
+    /// Moves the ticket, then reflects the new status without waiting for a refresh.
+    public func apply(_ transition: JiraTransition, to ticket: Ticket) async -> JiraError? {
+        guard let configuration = settings.jiraConfiguration else { return .notConfigured }
+
+        do {
+            try await LiveJiraAPI(configuration: configuration)
+                .performTransition(issueKey: ticket.key, transitionID: transition.id)
+        } catch {
+            Log.jira.error("transition \(transition.id, privacy: .public) on \(ticket.key, privacy: .public) failed: \(String(describing: error), privacy: .public)")
+            return error
+        }
+
+        ticket.statusName = transition.toStatusName
+        ticket.statusCategory = transition.toStatusCategory
+        // The user did this; flagging it as something they have not seen would be absurd.
+        ticket.seenStatusName = transition.toStatusName
+        save()
+        reloadFromStore()
+        return nil
+    }
+
+    /// How many comments a detail view shows. Tickets in a fifteen-issue sample held at most
+    /// thirteen comments in total, so this is the whole conversation for almost every ticket.
+    public static let commentLimit = 10
+
+    /// Read when a ticket is opened and kept in view state only. Persisting them would add a
+    /// column, a staleness problem and unread bookkeeping, for content that is read at the
+    /// moment it is fetched.
+    public func comments(for ticket: Ticket) async -> JiraComments? {
+        guard let configuration = settings.jiraConfiguration else { return nil }
+        return try? await LiveJiraAPI(configuration: configuration)
+            .comments(issueKey: ticket.key, limit: Self.commentLimit)
+    }
+
     // MARK: - Threads
 
     /// Attaches the thread a pasted Slack link points at. Without a Slack connection the
@@ -399,6 +443,7 @@ public final class DashboardStore {
                 ticket.browseURLString = issue.browseURL.absoluteString
                 ticket.targetEndDate = issue.targetEndDate
                 ticket.numericID = issue.numericID
+                applyDescription(issue.description, to: ticket)
                 apply(issue.descriptionLinks, to: ticket)
             } else {
                 context.insert(
@@ -416,6 +461,7 @@ public final class DashboardStore {
                 )
                 if let inserted = tickets.first(where: { $0.key == issue.key }) {
                     inserted.numericID = issue.numericID
+                    applyDescription(issue.description, to: inserted)
                     apply(issue.descriptionLinks, to: inserted)
                 }
             }
@@ -429,6 +475,10 @@ public final class DashboardStore {
 
         save()
         reloadFromStore()
+    }
+
+    private func applyDescription(_ description: JSONValue?, to ticket: Ticket) {
+        ticket.descriptionData = description.flatMap { try? JSONEncoder().encode($0) }
     }
 
     private func apply(_ links: DescriptionLinks, to ticket: Ticket) {

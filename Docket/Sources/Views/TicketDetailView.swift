@@ -8,14 +8,21 @@ import DocketKit
 struct TicketDetailView: View {
     @Environment(AppSettings.self) private var settings
     @Environment(DashboardStore.self) private var store
+    @Environment(Clock.self) private var clock
     @Environment(\.openURL) private var openURL
 
     let ticket: Ticket
+    /// The popover is 400pt wide; the window is not. Only the layout differs.
+    var isCompact = false
 
     @State private var isAddingThread = false
     @State private var isEditingFigmaLink = false
     @State private var figmaDraft = ""
     @State private var figmaFailure: String?
+    @State private var transitions: [JiraTransition] = []
+    @State private var comments: JiraComments?
+    @State private var statusFailure: String?
+    @State private var isTransitioning = false
     @State private var linkDraft = ""
     @State private var addFailure: String?
     @State private var isSubmittingLink = false
@@ -24,6 +31,17 @@ struct TicketDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 header
+
+                if ticket.descriptionBlocks.isEmpty == false {
+                    Divider()
+                    DescriptionView(blocks: ticket.descriptionBlocks, isCompact: isCompact)
+                }
+
+                if let comments, comments.comments.isEmpty == false {
+                    Divider()
+                    CommentsView(comments: comments, issueURL: ticket.browseURL, isCompact: isCompact)
+                }
+
                 Divider()
                 slackSection
             }
@@ -31,13 +49,24 @@ struct TicketDetailView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityIdentifier("ticket_detail_container")
-        .task(id: ticket.key) { store.markSeen(ticket) }
+        .task(id: ticket.key) {
+            store.markSeen(ticket)
+            statusFailure = nil
+            comments = nil
+            transitions = await store.availableTransitions(for: ticket)
+            comments = await store.comments(for: ticket)
+        }
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                StatusBadge(ticket: ticket)
+                StatusControl(
+                    ticket: ticket,
+                    transitions: transitions,
+                    isBusy: isTransitioning,
+                    onSelect: move(with:)
+                )
                 PriorityBadge(name: ticket.priorityName, rank: ticket.priorityRank)
                 if let targetEnd = ticket.targetEndDate {
                     TargetEndBadge(date: targetEnd)
@@ -59,7 +88,9 @@ struct TicketDetailView: View {
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
 
-                Text(settings.strings.lastUpdated(settings.relativeTime.string(for: ticket.updatedAt)))
+                Text(settings.strings.lastUpdated(
+                    settings.relativeTime.string(for: ticket.updatedAt, relativeTo: clock.now)
+                ))
                     .font(.caption)
                     .foregroundStyle(.tertiary)
 
@@ -69,6 +100,13 @@ struct TicketDetailView: View {
             // The code sits next to the ticket it belongs to; the design gets its own row
             // because it carries a caption and a menu.
             linksRow
+
+            if let statusFailure {
+                Label(statusFailure, systemImage: "xmark.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .accessibilityIdentifier("ticket_detail_status_transition_failure")
+            }
 
             figmaRow
 
@@ -240,6 +278,30 @@ private extension TicketDetailView {
         }
         .padding(10)
         .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    func move(with transition: JiraTransition) {
+        // A transition screen cannot be filled in from here, so say so instead of failing.
+        guard transition.requiredFields.isEmpty else {
+            statusFailure = settings.strings.transitionNeedsJira(
+                transition.requiredFields.joined(separator: ", ")
+            )
+            return
+        }
+
+        isTransitioning = true
+        statusFailure = nil
+        Task {
+            let failure = await store.apply(transition, to: ticket)
+            isTransitioning = false
+            if let failure {
+                statusFailure = settings.strings.statusChangeFailed(
+                    settings.strings.jiraErrorMessage(failure)
+                )
+            } else {
+                transitions = await store.availableTransitions(for: ticket)
+            }
+        }
     }
 
     func submitFigmaLink() {

@@ -18,6 +18,8 @@ public struct JiraIssue: Sendable, Equatable, Identifiable {
     public let browseURL: URL
     /// Every URL the description carries, in the order they appear.
     public let descriptionURLs: [URL]
+    /// The description itself, kept as JSON so a change to the renderer needs no refetch.
+    public let description: JSONValue?
     /// Advanced Roadmaps' "Target end", or the plain due date when that field is absent.
     public let targetEndDate: Date?
 
@@ -34,6 +36,7 @@ public struct JiraIssue: Sendable, Equatable, Identifiable {
         updatedAt: Date,
         browseURL: URL,
         descriptionURLs: [URL] = [],
+        description: JSONValue? = nil,
         targetEndDate: Date? = nil
     ) {
         self.key = key
@@ -46,6 +49,7 @@ public struct JiraIssue: Sendable, Equatable, Identifiable {
         self.updatedAt = updatedAt
         self.browseURL = browseURL
         self.descriptionURLs = descriptionURLs
+        self.description = description
         self.targetEndDate = targetEndDate
     }
 }
@@ -109,6 +113,172 @@ struct JiraIssueRemoteModel: Decodable {
     }
 }
 
+/// One comment on an issue.
+public struct JiraComment: Sendable, Equatable, Identifiable {
+    public let id: String
+    public let authorName: String
+    public let createdAt: Date
+    /// The comment body, in the same format as the description.
+    public let body: JSONValue?
+    /// Written by a rule rather than a person, and so not part of the conversation.
+    public let isAutomated: Bool
+
+    public init(id: String, authorName: String, createdAt: Date, body: JSONValue?, isAutomated: Bool = false) {
+        self.id = id
+        self.authorName = authorName
+        self.createdAt = createdAt
+        self.body = body
+        self.isAutomated = isAutomated
+    }
+
+    public var blocks: [ADFBlock] { ADFDocument.blocks(from: body) }
+}
+
+/// A page of comments, plus how many exist in total.
+public struct JiraComments: Sendable, Equatable {
+    /// Oldest first: a conversation reads forwards, even when only its tail was fetched.
+    public let comments: [JiraComment]
+    /// Every comment on the issue, automation included — what Jira shows if the reader follows
+    /// the link, which is why it can exceed what is listed here.
+    public let total: Int
+
+    public init(comments: [JiraComment], total: Int) {
+        self.comments = comments
+        self.total = total
+    }
+
+    public var hasMore: Bool { total > comments.count }
+
+    /// Keeps the newest `limit` comments a person wrote, oldest first.
+    ///
+    /// Automation dominates some tickets — one issue answered with thirteen sprint-field
+    /// reminders and nothing else — so a window taken before filtering can hold no
+    /// conversation at all.
+    public static func page(from newestFirst: [JiraComment], total: Int, limit: Int) -> JiraComments {
+        let readable = newestFirst.lazy.filter { $0.isAutomated == false }.prefix(limit)
+        return JiraComments(comments: readable.reversed(), total: total)
+    }
+}
+
+/// Authors whose comments are automation.
+enum JiraAutomationAuthor {
+    /// Marketplace actors (`Automation for Jira` and its siblings) report this account type.
+    static let appAccountType = "app"
+
+    /// A site can also drive its rules from an ordinary account that reports
+    /// `accountType: "atlassian"`, indistinguishable from a colleague by type alone. Such
+    /// bots can be listed here by account id — the id rather than the display name, so a
+    /// person whose name merely resembles a bot's is never mistaken for one.
+    static let accountIDs: Set<String> = []
+
+    static func isAutomated(
+        accountID: String?,
+        accountType: String?,
+        listedIDs: Set<String> = accountIDs
+    ) -> Bool {
+        if accountType == appAccountType { return true }
+        guard let accountID else { return false }
+        return listedIDs.contains(accountID)
+    }
+}
+
+struct JiraCommentsResponse: Decodable {
+    let comments: [Comment]?
+    let total: Int?
+
+    struct Comment: Decodable {
+        let id: String?
+        let author: Author?
+        let created: String?
+        let body: JSONValue?
+
+        struct Author: Decodable {
+            let accountId: String?
+            let accountType: String?
+            let displayName: String?
+        }
+
+        var asEntity: JiraComment? { asEntity(listedBotIDs: JiraAutomationAuthor.accountIDs) }
+
+        func asEntity(listedBotIDs: Set<String>) -> JiraComment? {
+            guard let id else { return nil }
+            return JiraComment(
+                id: id,
+                authorName: author?.displayName ?? "",
+                createdAt: created.flatMap(JiraDateParser.date(from:)) ?? .distantPast,
+                body: body,
+                isAutomated: JiraAutomationAuthor.isAutomated(
+                    accountID: author?.accountId,
+                    accountType: author?.accountType,
+                    listedIDs: listedBotIDs
+                )
+            )
+        }
+    }
+}
+
+/// A move the workflow allows from the issue's current status.
+public struct JiraTransition: Sendable, Equatable, Identifiable {
+    public let id: String
+    /// The workflow's own name for the move, such as "Start Review".
+    public let name: String
+    /// Where the issue lands. This is what the user is shown: "검토 중" says more than
+    /// "Start Review".
+    public let toStatusName: String
+    public let toStatusCategory: StatusCategory
+    /// Fields the transition screen demands. A move needing these cannot be completed from
+    /// here and fails with an explanation.
+    public let requiredFields: [String]
+
+    public init(
+        id: String,
+        name: String,
+        toStatusName: String,
+        toStatusCategory: StatusCategory,
+        requiredFields: [String] = []
+    ) {
+        self.id = id
+        self.name = name
+        self.toStatusName = toStatusName
+        self.toStatusCategory = toStatusCategory
+        self.requiredFields = requiredFields
+    }
+}
+
+struct JiraTransitionsResponse: Decodable {
+    let transitions: [Transition]?
+
+    struct Transition: Decodable {
+        let id: String?
+        let name: String?
+        let to: To?
+        let fields: [String: Field]?
+
+        struct To: Decodable {
+            let name: String?
+            let statusCategory: JiraIssueRemoteModel.Status.Category?
+        }
+
+        struct Field: Decodable {
+            let required: Bool?
+        }
+
+        var asEntity: JiraTransition? {
+            guard let id, let name, let statusName = to?.name else { return nil }
+            return JiraTransition(
+                id: id,
+                name: name,
+                toStatusName: statusName,
+                toStatusCategory: StatusCategory.resolved(
+                    jiraKey: to?.statusCategory?.key ?? "",
+                    statusName: statusName
+                ),
+                requiredFields: (fields ?? [:]).filter { $0.value.required == true }.keys.sorted()
+            )
+        }
+    }
+}
+
 struct JiraFieldRemoteModel: Decodable {
     let id: String
     let name: String?
@@ -139,6 +309,7 @@ extension JiraIssueRemoteModel {
             updatedAt: JiraDateParser.date(from: fields.updated) ?? .distantPast,
             browseURL: siteURL.appendingPathComponent("browse").appendingPathComponent(key),
             descriptionURLs: DescriptionLinks.urls(in: fields.description),
+            description: fields.description,
             targetEndDate: date(forFieldID: targetEndFieldID)
         )
     }

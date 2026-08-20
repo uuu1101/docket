@@ -75,6 +75,10 @@ bottom. The `D-3` badge is how long is left; it turns red once the date has pass
 
 **Click a ticket** to open its detail, where you get:
 
+- **Change status** — click the status badge to move the ticket to any status its
+  workflow allows.
+- **Description and comments** — the Jira description and the latest comments (minus
+  automation bots) show right in the detail.
 - **Pull request, Jira and Figma buttons** — links written into the Jira description are
   picked up automatically. A pull request matches when the ticket key appears in its title
   or its branch name.

@@ -8,6 +8,14 @@ public protocol JiraAPI: Sendable {
     func issues(jql: String, maxResults: Int, extraFieldID: String?) async throws(JiraError) -> [JiraIssue]
     /// The generated id of a custom field, looked up by its display name.
     func fieldID(named name: String) async throws(JiraError) -> String?
+    /// The moves the workflow allows from an issue's current status. Depends on the issue,
+    /// the workflow and the caller's permissions, so it cannot be fetched in bulk.
+    func transitions(issueKey: String) async throws(JiraError) -> [JiraTransition]
+    func performTransition(issueKey: String, transitionID: String) async throws(JiraError)
+    /// The newest comments a person wrote on an issue, oldest first. Fetched per issue when one
+    /// is opened: asking for the comment field on the ticket list tripled the response, since
+    /// Jira sends the bodies rather than just a count.
+    func comments(issueKey: String, limit: Int) async throws(JiraError) -> JiraComments
 }
 
 public struct JiraConfiguration: Sendable, Equatable {
@@ -89,6 +97,42 @@ public struct LiveJiraAPI: JiraAPI {
         return fields.first { $0.name?.lowercased() == wanted }?.id
     }
 
+    /// Jira's own page size, and enough to reach past the longest run of automation seen.
+    static let commentPageSize = 50
+
+    public func comments(issueKey: String, limit: Int) async throws(JiraError) -> JiraComments {
+        let data = try await get(
+            path: "/rest/api/3/issue/\(issueKey)/comment",
+            query: [
+                // Newest first, so a long thread yields its tail rather than its head.
+                URLQueryItem(name: "orderBy", value: "-created"),
+                // Wider than what is shown, because automation fills the newest comments on
+                // some tickets and the conversation sits behind it.
+                URLQueryItem(name: "maxResults", value: String(Self.commentPageSize)),
+            ]
+        )
+        let response = try decode(JiraCommentsResponse.self, from: data)
+        let newestFirst = response.comments?.compactMap(\.asEntity) ?? []
+        return JiraComments.page(
+            from: newestFirst,
+            total: response.total ?? newestFirst.count,
+            limit: limit
+        )
+    }
+
+    public func transitions(issueKey: String) async throws(JiraError) -> [JiraTransition] {
+        let data = try await get(
+            path: "/rest/api/3/issue/\(issueKey)/transitions",
+            query: [URLQueryItem(name: "expand", value: "transitions.fields")]
+        )
+        return try decode(JiraTransitionsResponse.self, from: data).transitions?.compactMap(\.asEntity) ?? []
+    }
+
+    public func performTransition(issueKey: String, transitionID: String) async throws(JiraError) {
+        let body = try encode(["transition": ["id": transitionID]])
+        _ = try await post(path: "/rest/api/3/issue/\(issueKey)/transitions", body: body)
+    }
+
     // MARK: - Transport
 
     private func get(path: String, query: [URLQueryItem]) async throws(JiraError) -> Data {
@@ -124,6 +168,44 @@ public struct LiveJiraAPI: JiraAPI {
             throw .unauthorized
         default:
             throw .http(status: http.statusCode, message: Self.errorMessage(from: data))
+        }
+    }
+
+    private func post(path: String, body: Data) async throws(JiraError) -> Data {
+        guard let url = URL(string: configuration.siteURL.absoluteString + path) else { throw .invalidSite }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue(configuration.authorizationHeader, forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.httpBody = body
+        request.timeoutInterval = 20
+
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch {
+            throw .network(error.localizedDescription)
+        }
+
+        guard let http = response as? HTTPURLResponse else { throw .network("Unexpected response") }
+        switch http.statusCode {
+        case 200 ..< 300:
+            return data
+        case 401, 403:
+            throw .unauthorized
+        default:
+            throw .http(status: http.statusCode, message: Self.errorMessage(from: data))
+        }
+    }
+
+    private func encode(_ body: [String: [String: String]]) throws(JiraError) -> Data {
+        do {
+            return try JSONEncoder().encode(body)
+        } catch {
+            throw .decoding(error.localizedDescription)
         }
     }
 

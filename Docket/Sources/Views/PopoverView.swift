@@ -9,6 +9,7 @@ import DocketKit
 struct PopoverView: View {
     @Environment(AppSettings.self) private var settings
     @Environment(DashboardStore.self) private var store
+    @Environment(Clock.self) private var clock
     @Environment(\.openWindow) private var openWindow
 
     @State private var filter = TicketFilter()
@@ -28,7 +29,7 @@ struct PopoverView: View {
                     TicketListView(filter: $filter, selection: $selection)
                         .navigationDestination(item: $selection) { key in
                             if let ticket = store.ticket(withKey: key) {
-                                TicketDetailView(ticket: ticket)
+                                TicketDetailView(ticket: ticket, isCompact: true)
                                     .navigationTitle(ticket.key)
                             }
                         }
@@ -101,7 +102,9 @@ struct PopoverView: View {
     private var syncLabel: String {
         if store.isSyncing { return settings.strings.syncing }
         guard let lastSyncedAt = store.lastSyncedAt else { return settings.strings.neverSynced }
-        return settings.strings.lastUpdated(settings.relativeTime.string(for: lastSyncedAt))
+        return settings.strings.lastUpdated(
+            settings.relativeTime.string(for: lastSyncedAt, relativeTo: clock.now)
+        )
     }
 }
 
