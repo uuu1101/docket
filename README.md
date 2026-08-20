@@ -1,3 +1,5 @@
+*한국어 · [English](README.en.md)*
+
 # Docket
 
 메뉴바에 상주하는 macOS 대시보드. 나에게 할당된 Jira 티켓과, 그 티켓에 얽힌 Slack
