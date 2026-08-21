@@ -186,6 +186,12 @@ private struct JiraSettingsView: View {
                 Text(settings.strings.jiraTokenHelp)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+
+                TextField(settings.strings.jiraBotAccountIDs, text: $settings.jiraBotAccountIDs)
+                    .accessibilityIdentifier("setting_input_jira_bot_ids")
+                Text(settings.strings.jiraBotAccountIDsHelp)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             ConnectionTestRow(title: settings.strings.testConnection, result: result) {

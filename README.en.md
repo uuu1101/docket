@@ -136,7 +136,9 @@ Jira works fine with Slack never configured.
   you changed yourself is never counted as an unseen change.
 - **Description and comments**: the detail renders the Jira description (ADF) and shows
   the latest ten comments — automation bots hidden, tables deferring to Jira. Comments
-  are fetched when opened and never stored.
+  are fetched when opened and never stored. Marketplace automation (app-type accounts)
+  is hidden automatically; bots your site runs from an ordinary account can be listed
+  under **Automation bot account IDs** in Settings → Jira.
 - **Images in the description**: screenshots embedded in the description draw right in
   the detail window; click to zoom. They are as sensitive as the ticket, so they are
   **never cached to disk** — memory only, bounded by decoded size.

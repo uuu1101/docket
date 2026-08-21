@@ -334,6 +334,14 @@ public struct Strings: Sendable, Equatable {
         )
     }
 
+    public var jiraBotAccountIDs: String { t("자동화 봇 계정 ID (선택)", "Automation bot account IDs (optional)") }
+    public var jiraBotAccountIDsHelp: String {
+        t(
+            "이 계정들의 코멘트를 숨깁니다. 쉼표나 공백으로 구분해 붙여 넣으세요. 마켓플레이스 자동화(app 타입)는 지정 없이도 숨겨집니다.",
+            "Comments from these accounts are hidden. Separate ids with commas or spaces. Marketplace automation (app-type accounts) is hidden without being listed."
+        )
+    }
+
     public var slackUserToken: String { t("User 토큰", "User token") }
     public var slackTokenHelp: String {
         t(

@@ -158,3 +158,25 @@ struct CommentTests {
         #expect(comments.comments.isEmpty)
     }
 }
+
+@MainActor
+@Suite("Listing the site's own bots")
+struct BotAccountIDTests {
+    @Test("Ids split on commas, spaces and newlines, however they were pasted")
+    func parsesPastedIDs() {
+        #expect(AppSettings.parseAccountIDs("a, b\nc d,,  ") == ["a", "b", "c", "d"])
+        #expect(AppSettings.parseAccountIDs("") == [])
+        #expect(AppSettings.parseAccountIDs("  ,  ") == [])
+    }
+
+    @Test("The listed ids travel into the Jira configuration")
+    func configurationCarriesIDs() {
+        let configuration = JiraConfiguration(
+            siteURLString: "https://example.atlassian.net",
+            email: "a@example.com",
+            apiToken: "t",
+            botAccountIDs: ["712020:bot"]
+        )
+        #expect(configuration?.botAccountIDs == ["712020:bot"])
+    }
+}

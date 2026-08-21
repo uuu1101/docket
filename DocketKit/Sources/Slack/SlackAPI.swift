@@ -201,7 +201,9 @@ public actor LiveSlackAPI: SlackAPI {
         case "not_authed", "invalid_auth", "token_revoked", "account_inactive":
             .invalidAuth
         case "missing_scope", "not_allowed_token_type":
-            .missingScope(status.needed ?? "search:read")
+            // Slack usually names the scope; when it does not, the granted list is the
+            // best pointer to what to compare against.
+            .missingScope(status.needed ?? SlackOAuth.userScopes.joined(separator: ", "))
         case "ratelimited":
             .rateLimited(retryAfter: 30)
         case let other:

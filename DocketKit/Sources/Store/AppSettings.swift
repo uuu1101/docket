@@ -15,6 +15,7 @@ public final class AppSettings {
         static let customJQL = "settings.customJQL"
         static let jiraSiteURL = "settings.jiraSiteURL"
         static let jiraEmail = "settings.jiraEmail"
+        static let jiraBotAccountIDs = "settings.jiraBotAccountIDs"
         static let slackUserName = "settings.slackUserName"
         static let slackTeamName = "settings.slackTeamName"
         static let slackTeamID = "settings.slackTeamID"
@@ -48,6 +49,13 @@ public final class AppSettings {
 
     public var jiraEmail: String {
         didSet { defaults.set(jiraEmail, forKey: Key.jiraEmail) }
+    }
+
+    /// Account ids of the site's automation bots, comma- or whitespace-separated, whose
+    /// comments the dashboard hides. Bots reporting `accountType: "app"` are hidden
+    /// without being listed.
+    public var jiraBotAccountIDs: String {
+        didSet { defaults.set(jiraBotAccountIDs, forKey: Key.jiraBotAccountIDs) }
     }
 
     public var jiraAPIToken: String {
@@ -104,6 +112,7 @@ public final class AppSettings {
         customJQL = defaults.string(forKey: Key.customJQL) ?? ""
         jiraSiteURL = defaults.string(forKey: Key.jiraSiteURL) ?? Self.bundledJiraSiteURL
         jiraEmail = defaults.string(forKey: Key.jiraEmail) ?? ""
+        jiraBotAccountIDs = defaults.string(forKey: Key.jiraBotAccountIDs) ?? ""
         jiraAPIToken = keychain.value(for: .jiraAPIToken) ?? ""
         slackUserToken = keychain.value(for: .slackUserToken) ?? ""
         slackUserName = defaults.string(forKey: Key.slackUserName) ?? ""
@@ -129,7 +138,21 @@ public final class AppSettings {
     public var relativeTime: RelativeTime { RelativeTime(language: language.resolved) }
 
     public var jiraConfiguration: JiraConfiguration? {
-        JiraConfiguration(siteURLString: jiraSiteURL, email: jiraEmail, apiToken: jiraAPIToken)
+        JiraConfiguration(
+            siteURLString: jiraSiteURL,
+            email: jiraEmail,
+            apiToken: jiraAPIToken,
+            botAccountIDs: Self.parseAccountIDs(jiraBotAccountIDs)
+        )
+    }
+
+    /// Splits ids the way people paste them: commas, spaces or newlines.
+    static func parseAccountIDs(_ raw: String) -> Set<String> {
+        Set(
+            raw.split(whereSeparator: { $0 == "," || $0.isWhitespace })
+                .map(String.init)
+                .filter { $0.isEmpty.not }
+        )
     }
 
     /// Prefilled on a fresh install so a new user only has to supply their own credentials.

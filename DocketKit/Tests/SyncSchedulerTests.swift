@@ -88,6 +88,20 @@ struct SyncSchedulerTests {
         #expect(scheduler.isBusy == false)
     }
 
+    @Test("Two views reacting to the same change cost one pass, and the newest one")
+    func duplicateForcesCoalesce() async {
+        let scheduler = SyncScheduler()
+        var ran: [String] = []
+
+        // Both onChange observers fire in the same turn; neither pass has started yet.
+        scheduler.schedule(force: true) { ran.append("list") }
+        scheduler.schedule(force: true) { ran.append("settings") }
+        await settle()
+
+        #expect(ran == ["settings"], "the waiting pass should run once, with the newest work")
+        #expect(scheduler.isBusy == false)
+    }
+
     @Test("Nothing is left running after a cancel")
     func cancelClears() async {
         let scheduler = SyncScheduler()

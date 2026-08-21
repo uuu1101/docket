@@ -6,9 +6,9 @@ import Network
 
 /// Catches Slack's OAuth redirect on a loopback port.
 ///
-/// Slack treats `http://localhost` as a desktop redirect when PKCE is enabled, and unlike a
-/// custom URI scheme it does not force token rotation — so the app gets a token it can keep
-/// without a client secret to renew it. The listener is opened for one request and closed.
+/// Slack accepts `http://localhost` as a desktop redirect only while PKCE is enabled — and
+/// PKCE also makes the issued token a rotating one, whatever the app config says, which the
+/// token store is built around. The listener is opened for one request and closed.
 @MainActor
 public final class LoopbackAuthReceiver {
     public struct Callback: Sendable, Equatable {

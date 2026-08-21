@@ -27,15 +27,20 @@ public struct JiraConfiguration: Sendable, Equatable {
     public let siteURL: URL
     public let email: String
     public let apiToken: String
+    /// Site-automation accounts whose comments are hidden. Bots reporting
+    /// `accountType: "app"` need no listing; this is for the ones a site runs from an
+    /// ordinary account, indistinguishable from a colleague by type alone.
+    public let botAccountIDs: Set<String>
 
-    public init(siteURL: URL, email: String, apiToken: String) {
+    public init(siteURL: URL, email: String, apiToken: String, botAccountIDs: Set<String> = []) {
         self.siteURL = siteURL
         self.email = email
         self.apiToken = apiToken
+        self.botAccountIDs = botAccountIDs
     }
 
     /// Builds a configuration only when every field is present and the site parses as a URL.
-    public init?(siteURLString: String, email: String, apiToken: String?) {
+    public init?(siteURLString: String, email: String, apiToken: String?, botAccountIDs: Set<String> = []) {
         let trimmed = siteURLString.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.isEmpty.not,
               email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty.not,
@@ -55,7 +60,12 @@ public struct JiraConfiguration: Sendable, Equatable {
               url.scheme?.lowercased() == "https"
         else { return nil }
 
-        self.init(siteURL: url, email: email.trimmingCharacters(in: .whitespacesAndNewlines), apiToken: apiToken)
+        self.init(
+            siteURL: url,
+            email: email.trimmingCharacters(in: .whitespacesAndNewlines),
+            apiToken: apiToken,
+            botAccountIDs: botAccountIDs
+        )
     }
 
     /// Used when only the Slack half of a `SyncEngine` is needed.
@@ -146,7 +156,8 @@ public struct LiveJiraAPI: JiraAPI {
             ]
         )
         let response = try decode(JiraCommentsResponse.self, from: data)
-        let newestFirst = response.comments?.compactMap(\.asEntity) ?? []
+        let newestFirst = response.comments?
+            .compactMap { $0.asEntity(listedBotIDs: configuration.botAccountIDs) } ?? []
         return JiraComments.page(
             from: newestFirst,
             total: response.total ?? newestFirst.count,

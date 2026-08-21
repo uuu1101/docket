@@ -110,7 +110,7 @@ public struct SlackOAuth: Sendable {
         var components = URLComponents(string: "https://slack.com/oauth/v2/authorize")
         components?.queryItems = [
             URLQueryItem(name: "client_id", value: clientID),
-            // No bot scopes: search.messages is a user-token endpoint.
+            // No bot scopes: everything the app reads, it reads as the user.
             URLQueryItem(name: "scope", value: ""),
             URLQueryItem(name: "user_scope", value: Self.userScopes.joined(separator: ",")),
             URLQueryItem(name: "redirect_uri", value: redirectURI),
