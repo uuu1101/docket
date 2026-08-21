@@ -64,7 +64,10 @@ struct StatusBadge: View {
     /// label with something floating beside it.
     enum Accessory {
         case none
-        case menu
+        /// The chevron, faded while the workflow's moves are still being fetched. An indicator
+        /// that dims and sharpens reads as one control settling; one that appears from nothing
+        /// reads as the layout shifting.
+        case menu(isReady: Bool)
         case busy
     }
 
@@ -80,8 +83,10 @@ struct StatusBadge: View {
             switch accessory {
             case .none:
                 EmptyView()
-            case .menu:
-                Image(systemName: "chevron.down").font(.caption2)
+            case let .menu(isReady):
+                Image(systemName: "chevron.down")
+                    .font(.caption2)
+                    .opacity(isReady ? 1 : 0.35)
             case .busy:
                 ProgressView().controlSize(.small).scaleEffect(0.5)
             }
@@ -105,33 +110,44 @@ struct StatusControl: View {
     @Environment(AppSettings.self) private var settings
 
     let ticket: Ticket
-    let transitions: [JiraTransition]
+    /// `nil` until the moves have been fetched — the workflow is per issue, so the list cannot
+    /// come from the ticket list and only arrives after the detail opens.
+    let transitions: [JiraTransition]?
     let isBusy: Bool
     let onSelect: (JiraTransition) -> Void
 
     var body: some View {
         if isBusy {
             StatusBadge(ticket: ticket, accessory: .busy)
-        } else if transitions.isEmpty {
-            // No permission, or nowhere to go: a plain label, with nothing to press.
-            StatusBadge(ticket: ticket)
-        } else {
-            Menu {
-                ForEach(transitions) { transition in
-                    Button(transition.toStatusName) { onSelect(transition) }
-                }
-            } label: {
-                StatusBadge(ticket: ticket, accessory: .menu)
+        } else if let transitions {
+            if transitions.isEmpty {
+                // No permission, or nowhere to go: a plain label, with nothing to press.
+                StatusBadge(ticket: ticket)
+            } else {
+                menu(for: transitions)
             }
-            // `.borderlessButton` restyles the label — it drops the chip's colour and draws
-            // its own indicator beside it. A plain button style leaves the label alone.
-            .menuStyle(.button)
-            .buttonStyle(.plain)
-            .menuIndicator(.hidden)
-            .fixedSize()
-            .help(settings.strings.changeStatus)
-            .accessibilityIdentifier("ticket_detail_menu_status")
+        } else {
+            StatusBadge(ticket: ticket, accessory: .menu(isReady: false))
+                .accessibilityIdentifier("ticket_detail_status_pending")
         }
+    }
+
+    private func menu(for transitions: [JiraTransition]) -> some View {
+        Menu {
+            ForEach(transitions) { transition in
+                Button(transition.toStatusName) { onSelect(transition) }
+            }
+        } label: {
+            StatusBadge(ticket: ticket, accessory: .menu(isReady: true))
+        }
+        // `.borderlessButton` restyles the label — it drops the chip's colour and draws
+        // its own indicator beside it. A plain button style leaves the label alone.
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help(settings.strings.changeStatus)
+        .accessibilityIdentifier("ticket_detail_menu_status")
     }
 }
 

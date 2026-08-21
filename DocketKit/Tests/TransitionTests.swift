@@ -100,6 +100,9 @@ struct TransitionStoreTests {
         func comments(issueKey: String, limit: Int) async throws(JiraError) -> JiraComments {
             JiraComments(comments: [], total: 0)
         }
+
+        func descriptionMedia(issueKey: String) async throws(JiraError) -> [JiraDescriptionMedia] { [] }
+        func attachment(id: String, thumbnail: Bool) async throws(JiraError) -> Data { Data() }
     }
 
     private func makeStore(jira: ScriptedJiraAPI = ScriptedJiraAPI()) throws -> DashboardStore {

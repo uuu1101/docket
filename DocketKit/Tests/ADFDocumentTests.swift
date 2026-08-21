@@ -161,12 +161,15 @@ struct ADFDocumentTests {
         #expect(spans.first?.link != nil)
     }
 
-    @Test("Tables and media are named, not silently dropped", arguments: [
-        (#"{"type":"doc","content":[{"type":"table","content":[]}]}"#, "table"),
-        (#"{"type":"doc","content":[{"type":"mediaSingle","content":[]}]}"#, "media"),
-    ])
-    func unsupported(json: String, kind: String) throws {
-        #expect(try blocks(json) == [.unsupported(kind: kind)])
+    @Test("A table is named, not silently dropped")
+    func unsupportedTable() throws {
+        #expect(try blocks(#"{"type":"doc","content":[{"type":"table","content":[]}]}"#)
+            == [.unsupported(kind: "table")])
+    }
+
+    @Test("A media wrapper with nothing in it draws nothing")
+    func emptyMediaWrapper() throws {
+        #expect(try blocks(#"{"type":"doc","content":[{"type":"mediaSingle","content":[]}]}"#).isEmpty)
     }
 
     @Test("A panel's children are read through, not lost with the wrapper")

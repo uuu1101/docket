@@ -19,11 +19,13 @@ struct TicketDetailView: View {
     @State private var isEditingFigmaLink = false
     @State private var figmaDraft = ""
     @State private var figmaFailure: String?
-    @State private var transitions: [JiraTransition] = []
+    /// `nil` while being fetched, so a stale list is never offered for the ticket on screen.
+    @State private var transitions: [JiraTransition]?
     @State private var comments: JiraComments?
     /// Parsed once per ticket rather than in `body`: the computed property decodes and
     /// walks the whole ADF document, and `body` re-evaluates on every clock tick.
     @State private var descriptionBlocks: [ADFBlock] = []
+    @State private var descriptionMedia: [JiraDescriptionMedia] = []
     @State private var statusFailure: String?
     @State private var isTransitioning = false
     @State private var linkDraft = ""
@@ -37,7 +39,12 @@ struct TicketDetailView: View {
 
                 if descriptionBlocks.isEmpty == false {
                     Divider()
-                    DescriptionView(blocks: descriptionBlocks, isCompact: isCompact)
+                    DescriptionView(
+                        blocks: descriptionBlocks,
+                        media: descriptionMedia,
+                        issueURL: ticket.browseURL,
+                        isCompact: isCompact
+                    )
                 }
 
                 if let comments, comments.comments.isEmpty == false {
@@ -55,15 +62,17 @@ struct TicketDetailView: View {
         .onChange(of: ticket.descriptionData) {
             descriptionBlocks = ticket.descriptionBlocks
         }
+        .desktopAppLinks(slackTeamID: settings.slackTeamID)
         .task(id: ticket.key) {
             store.markSeen(ticket)
             statusFailure = nil
             comments = nil
             descriptionBlocks = ticket.descriptionBlocks
-            // The previous ticket's moves must not stay clickable on this one: transition
-            // ids are workflow-scoped, so one chosen for that ticket can apply cleanly —
-            // and wrongly — to this ticket.
-            transitions = []
+            descriptionMedia = []
+            // A stale list must never be offered for the ticket on screen: transition ids
+            // are workflow-scoped, so one chosen for another ticket can apply cleanly —
+            // and wrongly — here.
+            transitions = nil
             isTransitioning = false
             let found = await store.availableTransitions(for: ticket)
             guard Task.isCancelled == false else { return }
@@ -71,6 +80,12 @@ struct TicketDetailView: View {
             let fetched = await store.comments(for: ticket)
             guard Task.isCancelled == false else { return }
             comments = fetched
+            // The popover draws no images, so it asks for none.
+            if isCompact == false, descriptionBlocks.isEmpty == false {
+                let media = await store.descriptionMedia(for: ticket)
+                guard Task.isCancelled == false else { return }
+                descriptionMedia = media
+            }
         }
     }
 
@@ -314,8 +329,9 @@ private extension TicketDetailView {
                     settings.strings.jiraErrorMessage(failure)
                 )
             } else {
-                // Refetch before re-enabling the control, or the pre-move menu is
-                // briefly clickable and offers moves the new status no longer allows.
+                // The moves belong to the status just left behind: drop them and refetch
+                // before re-enabling the control, so the pre-move menu is never clickable.
+                transitions = nil
                 transitions = await store.availableTransitions(for: ticket)
             }
             isTransitioning = false

@@ -7,11 +7,15 @@ public struct SlackIdentity: Sendable, Equatable {
     public let userID: String
     public let userName: String
     public let teamName: String
+    /// `T…`. Required by every `slack://` deep link, so a permalink cannot be handed to the
+    /// desktop app without it.
+    public let teamID: String
 
-    public init(userID: String, userName: String, teamName: String) {
+    public init(userID: String, userName: String, teamName: String, teamID: String = "") {
         self.userID = userID
         self.userName = userName
         self.teamName = teamName
+        self.teamID = teamID
     }
 }
 
@@ -117,9 +121,11 @@ struct SlackAuthPayload: Decodable {
     let userId: String?
     let user: String?
     let team: String?
+    let teamId: String?
 
     enum CodingKeys: String, CodingKey {
         case userId = "user_id"
+        case teamId = "team_id"
         case user, team
     }
 }

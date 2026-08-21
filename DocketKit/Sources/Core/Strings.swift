@@ -102,6 +102,12 @@ public struct Strings: Sendable, Equatable {
 
     public var descriptionLabel: String { t("설명", "Description") }
 
+    public var openFullSize: String { t("클릭하면 원본 크기로 봅니다", "Click to see it full size") }
+    public var pinchToZoom: String { t("핀치로 확대·축소, 드래그로 이동", "Pinch to zoom, drag to pan") }
+    public var openVideoInJira: String { t("영상 Jira에서 열기", "Open the video in Jira") }
+    /// Shown above media that could not be placed where it belongs in the text.
+    public var descriptionMediaLabel: String { t("설명에 포함된 이미지", "Images in the description") }
+
     public func unsupportedContent(_ kind: String) -> String {
         switch kind {
         case "table": t("표는 Jira에서 확인하세요", "Open in Jira to see the table")
@@ -286,7 +292,7 @@ public struct Strings: Sendable, Equatable {
         case .assignedOpen: t("내게 할당", "Assigned")
         case .assignedOpenOrRecentlyDone: t("내게 할당 +7일", "Assigned +7d")
         case .reportedOpen: t("내가 보고", "Reported")
-        case .watching: t("내가 워치", "Watching")
+        case .watching: t("내가 관찰", "Watching")
         case .custom: t("직접 입력", "Custom")
         }
     }
@@ -301,7 +307,7 @@ public struct Strings: Sendable, Equatable {
             t("내가 보고한 미완료", "Reported by me, open")
         case .watching:
             // The query filters out done work here too, so the name says so.
-            t("내가 워치하는 미완료", "Watched by me, open")
+            t("내가 관찰하는 미완료", "Watched by me, open")
         case .custom:
             t("직접 입력", "Custom JQL")
         }

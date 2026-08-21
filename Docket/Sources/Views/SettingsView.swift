@@ -330,6 +330,8 @@ private struct SlackSettingsView: View {
         result = .testing
         do {
             let identity = try await LiveSlackAPI(token: settings.slackUserToken).identity()
+            // Workspaces connected before the id was stored learn it here, without reconnecting.
+            settings.applySlackIdentity(identity)
             let label = identity.teamName.isEmpty ? identity.userName : "\(identity.userName) · \(identity.teamName)"
             result = .success(settings.strings.connectedAs(label))
             store.refresh(force: true)

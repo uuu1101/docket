@@ -43,7 +43,8 @@ public actor LiveSlackAPI: SlackAPI {
         return SlackIdentity(
             userID: payload.userId ?? "",
             userName: payload.user ?? "",
-            teamName: payload.team ?? ""
+            teamName: payload.team ?? "",
+            teamID: payload.teamId ?? ""
         )
     }
 

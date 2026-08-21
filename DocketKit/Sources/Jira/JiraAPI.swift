@@ -12,6 +12,11 @@ public protocol JiraAPI: Sendable {
     /// the workflow and the caller's permissions, so it cannot be fetched in bulk.
     func transitions(issueKey: String) async throws(JiraError) -> [JiraTransition]
     func performTransition(issueKey: String, transitionID: String) async throws(JiraError)
+    /// The images and videos the description embeds, in document order.
+    func descriptionMedia(issueKey: String) async throws(JiraError) -> [JiraDescriptionMedia]
+    /// One attachment's bytes. `thumbnail` asks Jira for its scaled copy, which is what a
+    /// description-sized image needs.
+    func attachment(id: String, thumbnail: Bool) async throws(JiraError) -> Data
     /// The newest comments a person wrote on an issue, oldest first. Fetched per issue when one
     /// is opened: asking for the comment field on the ticket list tripled the response, since
     /// Jira sends the bodies rather than just a count.
@@ -108,6 +113,27 @@ public struct LiveJiraAPI: JiraAPI {
     /// Jira's own page size, and enough to reach past the longest run of automation seen.
     static let commentPageSize = 50
 
+    public func descriptionMedia(issueKey: String) async throws(JiraError) -> [JiraDescriptionMedia] {
+        let data = try await get(
+            path: "/rest/api/3/issue/\(issueKey)",
+            query: [
+                URLQueryItem(name: "fields", value: "description"),
+                // Jira's own rendering is the only place the attachment behind a media node
+                // is named.
+                URLQueryItem(name: "expand", value: "renderedFields"),
+            ]
+        )
+        return try decode(JiraRenderedFieldsResponse.self, from: data).descriptionMedia
+    }
+
+    public func attachment(id: String, thumbnail: Bool) async throws(JiraError) -> Data {
+        try await get(
+            path: "/rest/api/3/attachment/\(thumbnail ? "thumbnail" : "content")/\(id)",
+            query: [],
+            accept: "*/*"
+        )
+    }
+
     public func comments(issueKey: String, limit: Int) async throws(JiraError) -> JiraComments {
         let data = try await get(
             path: "/rest/api/3/issue/\(issueKey)/comment",
@@ -143,8 +169,10 @@ public struct LiveJiraAPI: JiraAPI {
 
     // MARK: - Transport
 
-    private func get(path: String, query: [URLQueryItem]) async throws(JiraError) -> Data {
-        try await perform(request(path: path, query: query))
+    /// `accept` is a parameter because an attachment is bytes: asking for JSON makes Jira
+    /// answer with an error rather than the file.
+    private func get(path: String, query: [URLQueryItem], accept: String = "application/json") async throws(JiraError) -> Data {
+        try await perform(request(path: path, query: query, accept: accept))
     }
 
     private func post(path: String, body: Data) async throws(JiraError) -> Data {
@@ -157,7 +185,7 @@ public struct LiveJiraAPI: JiraAPI {
 
     /// One URL construction and one header set for both verbs, so encoding rules and
     /// failure classification cannot quietly diverge between reads and writes.
-    private func request(path: String, query: [URLQueryItem]) throws(JiraError) -> URLRequest {
+    private func request(path: String, query: [URLQueryItem], accept: String = "application/json") throws(JiraError) -> URLRequest {
         guard var components = URLComponents(
             url: configuration.siteURL.appendingPathComponent(path),
             resolvingAgainstBaseURL: false
@@ -168,7 +196,7 @@ public struct LiveJiraAPI: JiraAPI {
 
         var request = URLRequest(url: url)
         request.setValue(configuration.authorizationHeader, forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(accept, forHTTPHeaderField: "Accept")
         request.timeoutInterval = 20
         return request
     }

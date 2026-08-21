@@ -17,6 +17,7 @@ public final class AppSettings {
         static let jiraEmail = "settings.jiraEmail"
         static let slackUserName = "settings.slackUserName"
         static let slackTeamName = "settings.slackTeamName"
+        static let slackTeamID = "settings.slackTeamID"
         static let slackTokenExpiresAt = "settings.slackTokenExpiresAt"
         static let githubRepositories = "settings.githubRepositories"
     }
@@ -62,6 +63,10 @@ public final class AppSettings {
         didSet { defaults.set(slackUserName, forKey: Key.slackUserName) }
     }
 
+    public private(set) var slackTeamID: String {
+        didSet { defaults.set(slackTeamID, forKey: Key.slackTeamID) }
+    }
+
     public private(set) var slackTeamName: String {
         didSet { defaults.set(slackTeamName, forKey: Key.slackTeamName) }
     }
@@ -103,6 +108,7 @@ public final class AppSettings {
         slackUserToken = keychain.value(for: .slackUserToken) ?? ""
         slackUserName = defaults.string(forKey: Key.slackUserName) ?? ""
         slackTeamName = defaults.string(forKey: Key.slackTeamName) ?? ""
+        slackTeamID = defaults.string(forKey: Key.slackTeamID) ?? ""
         slackRefreshToken = keychain.value(for: .slackRefreshToken) ?? ""
         slackClientSecret = keychain.value(for: .slackClientSecret) ?? ""
         githubToken = keychain.value(for: .githubToken) ?? ""
@@ -154,6 +160,15 @@ public final class AppSettings {
         // A renewal carries no identity, so an empty name must not wipe the stored one.
         if credentials.userName.isEmpty.not { slackUserName = credentials.userName }
         if credentials.teamName.isEmpty.not { slackTeamName = credentials.teamName }
+        if credentials.teamID.isEmpty.not { slackTeamID = credentials.teamID }
+    }
+
+    /// Fills in what `auth.test` knows and the stored credentials may not — a workspace
+    /// connected before a field existed carries it from the next check onwards.
+    public func applySlackIdentity(_ identity: SlackIdentity) {
+        if identity.userName.isEmpty.not { slackUserName = identity.userName }
+        if identity.teamName.isEmpty.not { slackTeamName = identity.teamName }
+        if identity.teamID.isEmpty.not { slackTeamID = identity.teamID }
     }
 
     public func disconnectSlack() {
@@ -161,6 +176,7 @@ public final class AppSettings {
         slackRefreshToken = ""
         slackTokenExpiresAt = nil
         slackUserName = ""
+        slackTeamID = ""
         slackTeamName = ""
     }
 

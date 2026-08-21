@@ -35,6 +35,8 @@ struct UnusedJiraAPI: JiraAPI {
     func fieldID(named name: String) async throws(JiraError) -> String? { nil }
     func transitions(issueKey: String) async throws(JiraError) -> [JiraTransition] { [] }
     func performTransition(issueKey: String, transitionID: String) async throws(JiraError) {}
+    func descriptionMedia(issueKey: String) async throws(JiraError) -> [JiraDescriptionMedia] { [] }
+    func attachment(id: String, thumbnail: Bool) async throws(JiraError) -> Data { Data() }
     func comments(issueKey: String, limit: Int) async throws(JiraError) -> JiraComments {
         JiraComments(comments: [], total: 0)
     }

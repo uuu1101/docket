@@ -121,6 +121,7 @@ public final class SlackAuthCoordinator {
             userID: identity.userID.isEmpty ? credentials.userID : identity.userID,
             userName: identity.userName,
             teamName: identity.teamName.isEmpty ? credentials.teamName : identity.teamName,
+            teamID: identity.teamID.isEmpty ? credentials.teamID : identity.teamID,
             refreshToken: credentials.refreshToken,
             expiresAt: credentials.expiresAt
         )

@@ -135,8 +135,14 @@ Jira works fine with Slack never configured.
   as a resolution cannot finish here, so it defers to Jira with an explanation. A status
   you changed yourself is never counted as an unseen change.
 - **Description and comments**: the detail renders the Jira description (ADF) and shows
-  the latest ten comments — automation bots hidden, tables and images deferring to Jira.
-  Comments are fetched when opened and never stored.
+  the latest ten comments — automation bots hidden, tables deferring to Jira. Comments
+  are fetched when opened and never stored.
+- **Images in the description**: screenshots embedded in the description draw right in
+  the detail window; click to zoom. They are as sensitive as the ticket, so they are
+  **never cached to disk** — memory only, bounded by decoded size.
+- **Open in the desktop app**: Slack and Figma links open the installed native apps
+  (`slack://`, `figma://`) instead of the browser, falling back to the original link
+  when the app is missing.
 - **Slack threads**: no searching. Paste a Slack message link into **Add thread** on a
   ticket's detail and that thread attaches (right-click a message in Slack → Copy link).
   A reply's link walks up to the thread root. Attached threads refresh their reply count

@@ -37,6 +37,9 @@ public enum ADFBlock: Sendable, Equatable {
     case listItem(marker: String, depth: Int, [ADFSpan])
     case codeBlock(String)
     case rule
+    /// An image or video, numbered in the order it appears. The document does not say which
+    /// attachment it is, so the number is what pairs it with one.
+    case media(index: Int)
     /// A node this renderer does not draw. Named so the reader is told what is missing
     /// rather than left with a gap that looks like a bug.
     case unsupported(kind: String)
@@ -45,9 +48,8 @@ public enum ADFBlock: Sendable, Equatable {
 /// Flattens an Atlassian Document Format description into lines.
 ///
 /// The node types are the ones real tickets use — a sample of fifteen was over 95%
-/// paragraphs, list items, headings, code and links. Tables and media appeared twice each
-/// and are deliberately left to Jira: a table in a 400pt panel is unreadable, and media
-/// needs an authenticated fetch.
+/// paragraphs, list items, headings, code and links. Tables are deliberately left to Jira:
+/// one in a 400pt panel is unreadable.
 public enum ADFDocument {
     public static func blocks(from document: JSONValue?) -> [ADFBlock] {
         guard let document, case let .object(root) = document else { return [] }
@@ -91,8 +93,12 @@ public enum ADFDocument {
         case "table":
             blocks.append(.unsupported(kind: "table"))
 
-        case "mediaSingle", "mediaGroup", "media", "file":
-            blocks.append(.unsupported(kind: "media"))
+        case "mediaSingle", "mediaGroup":
+            // Wrappers that carry the layout; the media nodes inside are what count.
+            append(contentOf: fields["content"], into: &blocks, depth: depth)
+
+        case "media", "file":
+            blocks.append(.media(index: blocks.count { if case .media = $0 { true } else { false } }))
 
         default:
             // Unknown block with children still yields its text rather than vanishing.
@@ -142,6 +148,19 @@ public enum ADFDocument {
 
     // MARK: - Inline content
 
+    /// Schemes something outside Jira can actually open. An attachment in a description is a
+    /// `blob:` address valid only inside Jira's editor: drawn as a link it looks live, and
+    /// clicking it does nothing at all.
+    private static let openableSchemes: Set<String> = ["http", "https", "mailto"]
+
+    static func openableURL(_ string: String) -> URL? {
+        guard let url = URL(string: string),
+              let scheme = url.scheme?.lowercased(),
+              openableSchemes.contains(scheme)
+        else { return nil }
+        return url
+    }
+
     private static func spans(in value: JSONValue?) -> [ADFSpan] {
         guard case let .array(nodes)? = value else { return [] }
 
@@ -162,7 +181,7 @@ public enum ADFDocument {
                 // Only a web URL may become clickable; anything else stays plain text.
                 if case let .object(attributes)? = fields["attrs"],
                    case let .string(url)? = attributes["url"] {
-                    spans.append(ADFSpan(text: url, link: URL(string: url).flatMap { $0.isWebURL ? $0 : nil }))
+                    spans.append(ADFSpan(text: url, link: openableURL(url)))
                 }
 
             case "emoji":
@@ -202,9 +221,8 @@ public enum ADFDocument {
                 // A `javascript:` or `file:` href planted in a description must not
                 // become clickable; the text still renders.
                 if case let .object(attributes)? = markFields["attrs"],
-                   case let .string(href)? = attributes["href"],
-                   let url = URL(string: href), url.isWebURL {
-                    span.link = url
+                   case let .string(href)? = attributes["href"] {
+                    span.link = openableURL(href)
                 }
             default: break
             }

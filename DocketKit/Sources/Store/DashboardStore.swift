@@ -1,6 +1,7 @@
 //  DashboardStore.swift
 //  DocketKit
 
+import AppKit
 import Foundation
 import Observation
 import SwiftData
@@ -20,7 +21,9 @@ public final class DashboardStore {
     }
 
     public private(set) var tickets: [Ticket] = []
-    public private(set) var isSyncing = false
+    /// A refresh is running or queued. Owned by the scheduler, which is what keeps two
+    /// passes from overlapping.
+    public var isSyncing: Bool { scheduler.isBusy }
     public private(set) var lastSyncedAt: Date?
     public private(set) var jiraState: ConnectionState = .notConfigured
     public private(set) var slackState: ConnectionState = .notConfigured
@@ -30,7 +33,10 @@ public final class DashboardStore {
     /// using a context whose container has been deallocated traps inside SwiftData.
     private let container: ModelContainer
     private let context: ModelContext
-    private var refreshTask: Task<Void, Never>?
+    private let scheduler = SyncScheduler()
+    private let attachmentImages = AttachmentImageCache()
+    /// Which Jira the cached images came from, so a site change drops them.
+    private var attachmentSite: String?
     private var autoRefreshTask: Task<Void, Never>?
     private var slackAPI: LiveSlackAPI?
     /// Resolved once per launch rather than persisted, so adding the field in Jira takes
@@ -140,6 +146,33 @@ public final class DashboardStore {
             .comments(issueKey: ticket.key, limit: Self.commentLimit)
     }
 
+    /// Read when a ticket is opened, like its comments: the ids live in Jira's rendering of
+    /// the description, which the ticket list does not carry.
+    public func descriptionMedia(for ticket: Ticket) async -> [JiraDescriptionMedia] {
+        guard let configuration = settings.jiraConfiguration else { return [] }
+        return (try? await LiveJiraAPI(configuration: configuration).descriptionMedia(issueKey: ticket.key)) ?? []
+    }
+
+    /// Attachments are held in memory only. A ticket's screenshots are as sensitive as the
+    /// ticket, and a disk cache would outlive both the window and the session.
+    public func attachmentImage(id: String, thumbnail: Bool) async -> NSImage? {
+        guard let configuration = settings.jiraConfiguration else { return nil }
+        let site = configuration.siteURL.host ?? configuration.siteURL.absoluteString
+
+        if attachmentSite != site {
+            attachmentImages.removeAll()
+            attachmentSite = site
+        }
+
+        let image = await attachmentImages.image(site: site, attachmentID: id, thumbnail: thumbnail) {
+            try? await LiveJiraAPI(configuration: configuration).attachment(id: id, thumbnail: thumbnail)
+        }
+        if image == nil {
+            Log.jira.error("attachment \(id, privacy: .public) could not be read as an image")
+        }
+        return image
+    }
+
     // MARK: - Threads
 
     /// Attaches the thread a pasted Slack link points at. Without a Slack connection the
@@ -217,15 +250,10 @@ public final class DashboardStore {
 
     // MARK: - Refresh
 
+    /// `force` marks a request the user made — it supersedes a running pass rather than being
+    /// dropped, so changing the query takes effect at once.
     public func refresh(force: Bool) {
-        // Without force, a running sync is left alone. With force, it is cancelled and the
-        // new sync waits for it to unwind — the isSyncing guard would otherwise bounce the
-        // forced refresh off the very sync it just cancelled, fetching nothing.
-        guard force || isSyncing.not else { return }
-        let previous = refreshTask
-        previous?.cancel()
-        refreshTask = Task { [weak self] in
-            await previous?.value
+        scheduler.schedule(force: force) { [weak self] in
             await self?.performRefresh()
         }
     }
@@ -235,7 +263,7 @@ public final class DashboardStore {
         let minutes = settings.refreshMinutes
         autoRefreshTask = Task { [weak self] in
             while Task.isCancelled.not {
-                await self?.performRefresh()
+                self?.refresh(force: false)
                 try? await Task.sleep(for: .seconds(Double(minutes) * 60))
             }
         }
@@ -244,19 +272,14 @@ public final class DashboardStore {
     public func stopAutoRefresh() {
         autoRefreshTask?.cancel()
         autoRefreshTask = nil
-        refreshTask?.cancel()
-        refreshTask = nil
+        scheduler.cancel()
     }
 
     private func performRefresh() async {
-        guard isSyncing.not else { return }
         guard let configuration = settings.jiraConfiguration else {
             jiraState = .notConfigured
             return
         }
-
-        isSyncing = true
-        defer { isSyncing = false }
 
         let engine = SyncEngine(jira: makeJiraAPI(configuration), slack: slackClient())
 
@@ -284,6 +307,7 @@ public final class DashboardStore {
         guard Task.isCancelled.not else { return }
 
         if settings.isSlackConfigured {
+            await learnTeamIDIfMissing()
             await attachThreadsFoundInJira(using: engine)
             await refreshThreads(using: engine)
         } else {
@@ -293,6 +317,14 @@ public final class DashboardStore {
 
         lastSyncedAt = Date()
         save()
+    }
+
+    /// A workspace connected before the id was stored has none, and a Slack link then opens in
+    /// the browser. One `auth.test` fills it in; once stored, this costs nothing.
+    private func learnTeamIDIfMissing() async {
+        guard settings.slackTeamID.isEmpty else { return }
+        guard let identity = try? await slackClient()?.identity() else { return }
+        settings.applySlackIdentity(identity)
     }
 
     /// Lists each repository's recent pull requests once, then matches every ticket against

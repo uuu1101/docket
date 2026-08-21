@@ -25,6 +25,7 @@ public struct SlackCredentials: Sendable, Equatable {
     public let userID: String
     public let userName: String
     public let teamName: String
+    public let teamID: String
     /// Present when the app is a PKCE public client, which Slack always treats as rotating.
     public let refreshToken: String?
     /// `nil` for a non-rotating token, which never needs renewing.
@@ -35,6 +36,7 @@ public struct SlackCredentials: Sendable, Equatable {
         userID: String,
         userName: String,
         teamName: String,
+        teamID: String = "",
         refreshToken: String? = nil,
         expiresAt: Date? = nil
     ) {
@@ -42,6 +44,7 @@ public struct SlackCredentials: Sendable, Equatable {
         self.userID = userID
         self.userName = userName
         self.teamName = teamName
+        self.teamID = teamID
         self.refreshToken = refreshToken
         self.expiresAt = expiresAt
     }
@@ -191,6 +194,7 @@ public struct SlackOAuth: Sendable {
             userID: fields.id ?? "",
             userName: "",
             teamName: payload.team?.name ?? "",
+            teamID: payload.team?.id ?? "",
             refreshToken: fields.refreshToken?.nilIfEmpty,
             expiresAt: fields.expiresIn.map { Date().addingTimeInterval(TimeInterval($0)) }
         )
