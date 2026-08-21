@@ -150,7 +150,7 @@ public final class DashboardStore {
     /// the description, which the ticket list does not carry.
     public func descriptionMedia(for ticket: Ticket) async -> [JiraDescriptionMedia] {
         guard let configuration = settings.jiraConfiguration else { return [] }
-        return (try? await LiveJiraAPI(configuration: configuration).descriptionMedia(issueKey: ticket.key)) ?? []
+        return (try? await makeJiraAPI(configuration).descriptionMedia(issueKey: ticket.key)) ?? []
     }
 
     /// Attachments are held in memory only. A ticket's screenshots are as sensitive as the
@@ -164,8 +164,8 @@ public final class DashboardStore {
             attachmentSite = site
         }
 
-        let image = await attachmentImages.image(site: site, attachmentID: id, thumbnail: thumbnail) {
-            try? await LiveJiraAPI(configuration: configuration).attachment(id: id, thumbnail: thumbnail)
+        let image = await attachmentImages.image(site: site, attachmentID: id, thumbnail: thumbnail) { [makeJiraAPI] in
+            try? await makeJiraAPI(configuration).attachment(id: id, thumbnail: thumbnail)
         }
         if image == nil {
             Log.jira.error("attachment \(id, privacy: .public) could not be read as an image")
@@ -182,6 +182,7 @@ public final class DashboardStore {
         guard settings.isSlackConfigured, let slack = slackClient() else {
             attachLinkOnlyThread(permalink, origin: .manual, to: ticket)
             save()
+            reloadFromStore()
             return nil
         }
 
@@ -202,6 +203,7 @@ public final class DashboardStore {
 
             upsert(snapshot, into: ticket)
             save()
+            reloadFromStore()
             return nil
         } catch {
             return error
@@ -213,11 +215,15 @@ public final class DashboardStore {
     public func removeThread(_ thread: SlackThread) {
         switch thread.origin {
         case .manual:
+            // Removed from the parent's side first — that is the array the open detail
+            // observes; deleting the row alone does not wake it.
+            thread.ticket?.threads.removeAll { $0 === thread }
             context.delete(thread)
         case .jira:
             thread.isHidden = true
         }
         save()
+        reloadFromStore()
     }
 
     public func setFigmaURL(_ link: String, for ticket: Ticket) -> Bool {
@@ -418,7 +424,9 @@ public final class DashboardStore {
             origin: origin
         )
         context.insert(thread)
-        thread.ticket = ticket
+        // Appended on the parent's side: a view watching `ticket.threads` observes this;
+        // setting only the child's inverse can leave it stale.
+        ticket.threads.append(thread)
     }
 
     /// Attached threads are never discovered on their own, so each is refreshed by id to
@@ -587,7 +595,9 @@ public final class DashboardStore {
             lastFetchedAt: Date()
         )
         context.insert(thread)
-        thread.ticket = ticket
+        // Appended on the parent's side: a view watching `ticket.threads` observes this;
+        // setting only the child's inverse can leave it stale.
+        ticket.threads.append(thread)
     }
 
     /// Clears rows written while threads were still discovered by searching. Nothing
