@@ -9,6 +9,13 @@ with status changes done right there.
 To install without building, see [INSTALL.en.md](INSTALL.en.md). Licensed under
 [MIT](LICENSE).
 
+<p align="center">
+  <img src="docs/images/popover-dark.png" width="420" alt="The Docket popover under the menu bar — tickets with status, priority and due-date badges, plus unread marks">
+</p>
+
+<img src="docs/images/window-dark.png" width="100%" alt="The dashboard window — the ticket list beside a detail carrying the description, an attached image, a Figma button, comments and a Slack thread">
+
+
 ## Running
 
 You need [Tuist](https://tuist.dev) (`brew install tuist` or `mise install tuist`).
@@ -74,8 +81,10 @@ channels. Authentication is PKCE OAuth: there is no client secret, so there is n
 either.
 
 The repository ships with a default Slack app's client ID, so **most people just press
-Connect Slack in settings → Slack tab.** Follow the steps below only when your workspace
-blocks that app or you want to run your own.
+Connect Slack in settings → Slack tab.**
+
+Follow the steps below only when your workspace blocks that app or you want to run your
+own.
 
 1. https://api.slack.com/apps → **Create New App** → **From a manifest** → pick your
    workspace → paste `slack-app-manifest.yml`.
@@ -162,8 +171,9 @@ Jira works fine with Slack never configured.
   GitHub needs a personal access token and the repositories (`owner/repo`). The Jira
   development panel (`dev-status`) was tried too, but it **only reports counts — no
   titles, no URLs** — so it was unusable.
-- **Figma links**: enter one by hand when nothing was detected or you want a different
-  file. The hand-entered link wins; clearing it falls back to detection.
+- **Figma links**: Figma links written into the Jira description are picked up by
+  default. Enter one by hand to use a different file — the hand-entered link wins, and
+  clearing it falls back to detection.
 - **Removing a thread depends on where it came from**: a pasted thread is deleted for
   good. One found in the Jira description is only hidden — the link is still in Jira, so
   deleting it would just invite it back on the next refresh.

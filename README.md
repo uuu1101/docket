@@ -8,6 +8,13 @@
 빌드 없이 설치만 하려면 [INSTALL.md](INSTALL.md)([English](INSTALL.en.md))를 보세요.
 라이선스는 [MIT](LICENSE)입니다.
 
+<p align="center">
+  <img src="docs/images/popover-dark.png" width="420" alt="메뉴바 아래 열린 Docket 팝오버 — 상태·우선순위·마감 배지와 안 읽음 표시가 붙은 티켓 목록">
+</p>
+
+<img src="docs/images/window-dark.png" width="100%" alt="대시보드 윈도우 — 티켓 목록 옆에 설명·첨부 이미지·Figma 버튼·코멘트·Slack 스레드가 달린 상세 화면">
+
+
 ## 실행
 
 [Tuist](https://tuist.dev)가 필요합니다(`brew install tuist` 또는 `mise install tuist`).
@@ -68,11 +75,13 @@ PR 버튼을 쓰려면 필요합니다. 넣지 않으면 그 부분만 비고 �
 없습니다.
 
 저장소에 기본 Slack 앱의 Client ID가 들어 있어 **대부분은 설정 → Slack 탭 → Slack
-연결만 누르면 됩니다.** 워크스페이스 정책이 그 앱을 막거나 직접 만든 앱을 쓰고 싶을
-때만 아래 절차를 따르세요.
+연결만 누르면 됩니다.** 
+
+워크스페이스 정책이 그 앱을 막거나 직접 만든 앱을 쓰고 싶을때만 아래 절차를 따르세요.
 
 1. https://api.slack.com/apps → **Create New App** → **From a manifest** →
    워크스페이스 선택 → `slack-app-manifest.yml` 붙여넣기.
+
 2. **OAuth & Permissions**를 열어 아래 세 가지를 직접 확인합니다. 매니페스트가
    `redirect_urls`를 반영하지 못하는 경우가 있습니다.
    - **PKCE가 켜져 있는지.** 꺼져 있으면 Slack이 `http://localhost` 리다이렉트를 저장조차
@@ -97,8 +106,10 @@ PKCE를 켜면 Slack은 `token_rotation_enabled`가 `false`여도 **항상 회�
 
 Slack이 갱신에 `client_secret`을 요구하는 경우에만 Slack 탭 → **고급**에 입력하세요.
 Keychain에만 저장되며 앱 바이너리에는 들어가지 않습니다.
+
 3. **Basic Information → Client ID**를 `Project.swift`의 `SlackClientID`에 넣고
    `tuist generate` 후 재빌드합니다. Client ID는 비밀이 아닙니다.
+
 4. Docket 설정 → Slack 탭 → **Slack 연결**. 브라우저에서 승인하면 끝납니다.
 
 대시보드의 "Install to Workspace"는 누르지 마세요 — 4단계의 OAuth 흐름이 설치까지
@@ -149,8 +160,8 @@ Slack을 설정하지 않아도 Jira 대시보드는 정상 동작합니다.
   찾아 상세 화면에 버튼으로 띄웁니다. 설정 → GitHub에 personal access token과
   저장소(`owner/repo`)를 넣어야 합니다. Jira 개발 패널(`dev-status`)도 시도했지만
   **개수만 알려주고 PR의 제목·URL은 내려주지 않아** 쓸 수 없었습니다.
-- **Figma 링크**: 자동 감지가 없거나 다른 걸 쓰고 싶으면 직접 넣습니다. 직접 넣은 링크가
-  우선하고, 지우면 다시 자동 감지로 돌아갑니다.
+- **Figma 링크**: Jira 설명에 적힌 Figma 링크를 기본으로 가져옵니다. 다른 걸 쓰고 싶으면
+  직접 넣습니다. 직접 넣은 링크가 우선하고, 지우면 다시 자동 감지로 돌아갑니다.
 - **스레드 삭제는 출처에 따라 다릅니다**: 직접 붙여넣은 스레드는 완전히 삭제됩니다. Jira
   설명에서 온 스레드는 숨김 처리됩니다 — 링크가 Jira에 그대로 있어 지워도 다음 갱신에
   돌아오기 때문입니다.
