@@ -13,3 +13,4 @@ dist/
 
 # Local AI-plugin state; never part of the app.
 .mswai/
+.claude/
