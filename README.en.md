@@ -1,13 +1,21 @@
 *[한국어](README.md) · English*
 
-# Docket
+<p align="center">
+  <img src="docs/images/icon.png" width="96" alt="Docket app icon">
+</p>
 
-A macOS dashboard that lives in the menu bar. The Jira tickets assigned to you — and the
-Slack threads, pull requests, Figma files and comments attached to them — in one place,
-with status changes done right there.
+<h1 align="center">Docket</h1>
 
-To install without building, see [INSTALL.en.md](INSTALL.en.md). Licensed under
-[MIT](LICENSE).
+<p align="center">
+  The Jira tickets assigned to you — and the Slack threads, PRs, Figma files and comments<br>
+  attached to them — in the menu bar, with status changes done right there.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/macOS-15%2B-black" alt="macOS 15+">
+  <img src="https://img.shields.io/badge/Swift-6-F05138" alt="Swift 6">
+  <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License">
+</p>
 
 <p align="center">
   <img src="docs/images/popover-dark.png" width="420" alt="The Docket popover under the menu bar — tickets with status, priority and due-date badges, plus unread marks">
@@ -15,10 +23,28 @@ To install without building, see [INSTALL.en.md](INSTALL.en.md). Licensed under
 
 <img src="docs/images/window-dark.png" width="100%" alt="The dashboard window — the ticket list beside a detail carrying the description, an attached image, a Figma button, comments and a Slack thread">
 
+## Features
 
-## Running
+- **A menu bar dashboard** — your assigned Jira tickets, soonest deadline first. Newly
+  assigned tickets, status changes and unread replies put a count next to the icon.
+- **Change status in place** — click the status badge and pick any move the workflow
+  allows. No need to open Jira.
+- **Everything hangs off the ticket** — the Jira description (images included), the
+  latest comments, Slack threads and Figma links pulled out of the description, and
+  GitHub PRs matched by ticket key, all in one detail view.
+- **Slack thread tracking** — paste a link and its reply count and last activity stay
+  current on every refresh. Links attach even before Slack is connected.
+- **Desktop-app deep links** — Slack and Figma links open the installed apps instead of
+  the browser.
+- **Local only** — there is no server. Tokens live in the Keychain; the cache stays on
+  your Mac.
 
-You need [Tuist](https://tuist.dev) (`brew install tuist` or `mise install tuist`).
+## Getting started
+
+To install without building, follow [INSTALL.en.md](INSTALL.en.md).
+
+To build from source you need [Tuist](https://tuist.dev)
+(`brew install tuist` or `mise install tuist`).
 
 ```bash
 tuist generate          # creates Docket.xcworkspace
@@ -28,9 +54,10 @@ open Docket.xcworkspace
 Run the `Docket` scheme in Xcode. It shows up in the menu bar only, with no Dock icon
 (`LSUIElement`). Tests are ⌘U on the `DocketKit` scheme.
 
-Set **your own team** under Signing & Capabilities in Xcode and keychain access survives
-rebuilds. Without it the ad-hoc signature changes every build, and each one asks for token
-access again.
+> [!TIP]
+> Set **your own team** under Signing & Capabilities in Xcode and keychain access survives
+> rebuilds. Without it the ad-hoc signature changes every build, and each one asks for
+> token access again.
 
 ## Setup
 
@@ -88,10 +115,14 @@ own.
 
 1. https://api.slack.com/apps → **Create New App** → **From a manifest** → pick your
    workspace → paste `slack-app-manifest.yml`.
+
 2. Open **OAuth & Permissions** and check three things yourself — the manifest sometimes
    fails to apply `redirect_urls`:
-   - **PKCE is on.** With it off, Slack refuses to even save an `http://localhost`
-     redirect. Turn PKCE on **first**, then add the redirects.
+
+   > [!IMPORTANT]
+   > **Turn PKCE on first.** With it off, Slack refuses to even save an
+   > `http://localhost` redirect.
+
    - **All three Redirect URLs are present.** Add any that are missing and press
      **Save URLs**.
      ```
@@ -102,32 +133,32 @@ own.
    - **All seven User Token Scopes are present** — the manifest sometimes fails to apply
      `scopes`: `channels:history`, `groups:history`, `im:history`, `mpim:history`,
      `users:read`, `channels:read`, `groups:read`. Each conversation type needs its own
-     history scope — without one, threads of that type cannot be read. `search:read` is
-     no longer used.
+     history scope — without one, threads of that type cannot be read.
+
+3. Put **Basic Information → Client ID** into `SlackClientID` in `Project.swift`, run
+   `tuist generate` and rebuild. The client ID is not a secret.
+
+4. Docket settings → Slack tab → **Connect Slack**. Approve in the browser and it is done.
+
+> [!WARNING]
+> Do not press "Install to Workspace" on the app dashboard — the OAuth flow in step 4
+> installs it.
 
 With PKCE on, Slack issues **rotating tokens even when `token_rotation_enabled` is
 `false`** (the docs describe this only for custom URI schemes, but PKCE itself is the
 trigger). The app is built around that — tokens live about 12 hours, renew 5 minutes
 before expiry, and a rejected request renews once and retries. The refresh token lives in
-the Keychain.
+the Keychain. Only if Slack demands a `client_secret` for renewal, enter it under Slack
+tab → **Advanced**. It is stored in the Keychain only and never ships in the binary.
 
-Only if Slack demands a `client_secret` for renewal, enter it under Slack tab →
-**Advanced**. It is stored in the Keychain only and never ships in the binary.
-
-3. Put **Basic Information → Client ID** into `SlackClientID` in `Project.swift`, run
-   `tuist generate` and rebuild. The client ID is not a secret.
-4. Docket settings → Slack tab → **Connect Slack**. Approve in the browser and it is done.
-
-Do not press "Install to Workspace" on the app dashboard — the OAuth flow in step 4
-installs it.
-
-**Redirects for public distribution**: Slack requires every redirect URL to be https
-before public distribution can be enabled. The distributed app therefore registers the
-static page in `docs/slack-callback/` (hosted on GitHub Pages) and carries its address in
-`SlackRedirectURL` in `Project.swift`. The page just reads the loopback port off the
-state's suffix and bounces the browser to `http://localhost:<port>`, storing nothing.
-Leave `SlackRedirectURL` empty and the browser comes straight back to localhost — the
-combination a personal app made from the manifest uses.
+> [!NOTE]
+> **Redirects for public distribution**: Slack requires every redirect URL to be https
+> before public distribution can be enabled. The distributed app therefore registers the
+> static page in `docs/slack-callback/` (hosted on GitHub Pages) and carries its address
+> in `SlackRedirectURL` in `Project.swift`. The page just reads the loopback port off the
+> state's suffix and bounces the browser to `http://localhost:<port>`, storing nothing.
+> Leave `SlackRedirectURL` empty and the browser comes straight back to localhost — the
+> combination a personal app made from the manifest uses.
 
 The token carries your own permissions, so only public channels plus the private channels
 and DMs you are in can be read. If OAuth is impossible in your environment, an `xoxp-`
@@ -207,4 +238,4 @@ Docket/             SwiftUI — the popover and the window share the same list
 ```
 
 Tokens live in the Keychain, other settings in UserDefaults, and the ticket/thread cache
-in SwiftData.
+in SwiftData. Licensed under [MIT](LICENSE).

@@ -1,12 +1,21 @@
 *한국어 · [English](README.en.md)*
 
-# Docket
+<p align="center">
+  <img src="docs/images/icon.png" width="96" alt="Docket 앱 아이콘">
+</p>
 
-메뉴바에 상주하는 macOS 대시보드입니다. 나에게 할당된 Jira 티켓과, 그 티켓에 얽힌 Slack
-스레드·PR·Figma·코멘트를 한 곳에서 보고, 상태 변경까지 그 자리에서 끝낼 수 있습니다.
+<h1 align="center">Docket</h1>
 
-빌드 없이 설치만 하려면 [INSTALL.md](INSTALL.md)([English](INSTALL.en.md))를 보세요.
-라이선스는 [MIT](LICENSE)입니다.
+<p align="center">
+  나에게 할당된 Jira 티켓과, 그 티켓에 얽힌 Slack 스레드·PR·Figma·코멘트를<br>
+  메뉴바 한 곳에서 보고 — 상태 변경까지 그 자리에서 끝냅니다.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/macOS-15%2B-black" alt="macOS 15+">
+  <img src="https://img.shields.io/badge/Swift-6-F05138" alt="Swift 6">
+  <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License">
+</p>
 
 <p align="center">
   <img src="docs/images/popover-dark.png" width="420" alt="메뉴바 아래 열린 Docket 팝오버 — 상태·우선순위·마감 배지와 안 읽음 표시가 붙은 티켓 목록">
@@ -14,10 +23,25 @@
 
 <img src="docs/images/window-dark.png" width="100%" alt="대시보드 윈도우 — 티켓 목록 옆에 설명·첨부 이미지·Figma 버튼·코멘트·Slack 스레드가 달린 상세 화면">
 
+## 주요 기능
 
-## 실행
+- **메뉴바 대시보드** — 할당된 Jira 티켓을 마감 임박 순으로. 새 할당·상태 변화·안 읽은
+  답글이 있으면 아이콘 옆에 개수가 붙습니다.
+- **상태 변경** — 상태 배지를 눌러 워크플로가 허용하는 전환으로 바로 이동. Jira를 열
+  필요가 없습니다.
+- **티켓에 모든 게 매달립니다** — Jira 설명(이미지 포함)과 최근 코멘트, 설명에서 자동
+  추출한 Slack 스레드·Figma 링크, 티켓 키로 찾은 GitHub PR이 상세 한 화면에 모입니다.
+- **Slack 스레드 추적** — 링크를 붙여 넣으면 답글 수와 마지막 활동이 갱신마다
+  최신화됩니다. Slack 미연결이어도 링크는 붙습니다.
+- **데스크톱 앱 딥링크** — Slack·Figma 링크는 브라우저 대신 설치된 앱으로 엽니다.
+- **로컬 전용** — 서버가 없습니다. 토큰은 Keychain, 캐시는 내 맥에만.
 
-[Tuist](https://tuist.dev)가 필요합니다(`brew install tuist` 또는 `mise install tuist`).
+## 시작하기
+
+빌드 없이 설치하려면 [INSTALL.md](INSTALL.md)를 따라 DMG를 설치하세요.
+
+소스에서 빌드하려면 [Tuist](https://tuist.dev)가 필요합니다
+(`brew install tuist` 또는 `mise install tuist`).
 
 ```bash
 tuist generate          # Docket.xcworkspace 생성
@@ -27,9 +51,10 @@ open Docket.xcworkspace
 Xcode에서 `Docket` 스킴을 Run 하세요. Dock 아이콘 없이 메뉴바에만 뜹니다(`LSUIElement`).
 테스트는 `DocketKit` 스킴에서 ⌘U입니다.
 
-Xcode의 Signing & Capabilities에서 **Team을 본인 계정으로 지정**해 두면 Keychain 접근
-권한이 빌드마다 유지됩니다. 지정하지 않으면 ad-hoc 서명이라 재빌드 때마다 토큰 접근을
-다시 허용해야 합니다.
+> [!TIP]
+> Xcode의 Signing & Capabilities에서 **Team을 본인 계정으로 지정**해 두면 Keychain 접근
+> 권한이 빌드마다 유지됩니다. 지정하지 않으면 ad-hoc 서명이라 재빌드 때마다 토큰 접근을
+> 다시 허용해야 합니다.
 
 ## 설정
 
@@ -75,17 +100,20 @@ PR 버튼을 쓰려면 필요합니다. 넣지 않으면 그 부분만 비고 �
 없습니다.
 
 저장소에 기본 Slack 앱의 Client ID가 들어 있어 **대부분은 설정 → Slack 탭 → Slack
-연결만 누르면 됩니다.** 
+연결만 누르면 됩니다.**
 
-워크스페이스 정책이 그 앱을 막거나 직접 만든 앱을 쓰고 싶을때만 아래 절차를 따르세요.
+워크스페이스 정책이 그 앱을 막거나 직접 만든 앱을 쓰고 싶을 때만 아래 절차를 따르세요.
 
 1. https://api.slack.com/apps → **Create New App** → **From a manifest** →
    워크스페이스 선택 → `slack-app-manifest.yml` 붙여넣기.
 
 2. **OAuth & Permissions**를 열어 아래 세 가지를 직접 확인합니다. 매니페스트가
    `redirect_urls`를 반영하지 못하는 경우가 있습니다.
-   - **PKCE가 켜져 있는지.** 꺼져 있으면 Slack이 `http://localhost` 리다이렉트를 저장조차
-     거부합니다. **먼저 PKCE를 켜고** 리다이렉트를 추가해야 합니다.
+
+   > [!IMPORTANT]
+   > **먼저 PKCE를 켜야 합니다.** 꺼져 있으면 Slack이 `http://localhost` 리다이렉트를
+   > 저장조차 거부합니다.
+
    - **Redirect URLs에 세 개가 모두 있는지.** 없으면 추가하고 **Save URLs**를 누릅니다.
      ```
      http://localhost:53682/slack/callback
@@ -95,33 +123,32 @@ PR 버튼을 쓰려면 필요합니다. 넣지 않으면 그 부분만 비고 �
    - **User Token Scopes 7개가 있는지.** 매니페스트가 `scopes`를 반영하지 못하는 경우가
      있습니다. `channels:history`, `groups:history`, `im:history`, `mpim:history`,
      `users:read`, `channels:read`, `groups:read`. 대화 종류별로 history 스코프가 따로
-     필요합니다 — 없으면 그 스레드는 읽히지 않습니다. `search:read`는 더 이상 쓰지
-     않습니다.
-
-PKCE를 켜면 Slack은 `token_rotation_enabled`가 `false`여도 **항상 회전 토큰을
-발급합니다**(문서는 커스텀 URI 스킴에 한정해 설명하지만 실제로는 PKCE 자체가
-트리거입니다). 앱은 이를 전제로 동작합니다 — 약 12시간 수명의 토큰을 만료 5분 전에 자동
-갱신하고, 그래도 거부되면 한 번 갱신한 뒤 재시도합니다. refresh token은 Keychain에
-보관합니다.
-
-Slack이 갱신에 `client_secret`을 요구하는 경우에만 Slack 탭 → **고급**에 입력하세요.
-Keychain에만 저장되며 앱 바이너리에는 들어가지 않습니다.
+     필요합니다 — 없으면 그 스레드는 읽히지 않습니다.
 
 3. **Basic Information → Client ID**를 `Project.swift`의 `SlackClientID`에 넣고
    `tuist generate` 후 재빌드합니다. Client ID는 비밀이 아닙니다.
 
 4. Docket 설정 → Slack 탭 → **Slack 연결**. 브라우저에서 승인하면 끝납니다.
 
-대시보드의 "Install to Workspace"는 누르지 마세요 — 4단계의 OAuth 흐름이 설치까지
-합니다.
+> [!WARNING]
+> 앱 대시보드의 "Install to Workspace"는 누르지 마세요 — 4단계의 OAuth 흐름이 설치까지
+> 합니다.
 
-**공개 배포(public distribution)용 리다이렉트**: Slack은 공개 배포를 켜기 전 모든
-리다이렉트 URL이 https이길 요구합니다. 그래서 배포용 앱은 `docs/slack-callback/`의 정적
-페이지(GitHub Pages로 호스팅)를 리다이렉트로 등록하고, 그 주소를 `Project.swift`의
-`SlackRedirectURL`에 넣습니다. 페이지는 state 끝에 실린 포트를 읽어 브라우저를 그대로
-`http://localhost:포트`로 되돌려보낼 뿐, 아무것도 저장하지 않습니다. `SlackRedirectURL`을
-비우면 기존처럼 localhost로 직접 돌아옵니다 — 위 manifest로 만든 개인 앱은 그 조합을
-씁니다.
+PKCE를 켜면 Slack은 `token_rotation_enabled`가 `false`여도 **항상 회전 토큰을
+발급합니다**(문서는 커스텀 URI 스킴에 한정해 설명하지만 실제로는 PKCE 자체가
+트리거입니다). 앱은 이를 전제로 동작합니다 — 약 12시간 수명의 토큰을 만료 5분 전에 자동
+갱신하고, 그래도 거부되면 한 번 갱신한 뒤 재시도합니다. refresh token은 Keychain에
+보관합니다. Slack이 갱신에 `client_secret`을 요구하는 경우에만 Slack 탭 → **고급**에
+입력하세요. Keychain에만 저장되며 앱 바이너리에는 들어가지 않습니다.
+
+> [!NOTE]
+> **공개 배포(public distribution)용 리다이렉트**: Slack은 공개 배포를 켜기 전 모든
+> 리다이렉트 URL이 https이길 요구합니다. 그래서 배포용 앱은 `docs/slack-callback/`의
+> 정적 페이지(GitHub Pages로 호스팅)를 리다이렉트로 등록하고, 그 주소를 `Project.swift`의
+> `SlackRedirectURL`에 넣습니다. 페이지는 state 끝에 실린 포트를 읽어 브라우저를 그대로
+> `http://localhost:포트`로 되돌려보낼 뿐, 아무것도 저장하지 않습니다.
+> `SlackRedirectURL`을 비우면 기존처럼 localhost로 직접 돌아옵니다 — 위 manifest로 만든
+> 개인 앱은 그 조합을 씁니다.
 
 토큰은 본인 권한 그대로라 공개 채널 + 본인이 속한 비공개 채널/DM만 검색됩니다.
 OAuth를 쓸 수 없는 환경이라면 Slack 탭의 **고급**에서 `xoxp-` 토큰을 직접 넣을 수도
@@ -129,7 +156,7 @@ OAuth를 쓸 수 없는 환경이라면 Slack 탭의 **고급**에서 `xoxp-` �
 
 Slack을 설정하지 않아도 Jira 대시보드는 정상 동작합니다.
 
-## 동작
+## 동작 방식
 
 - **갱신**: 설정한 주기(기본 10분)마다 자동으로, 헤더의 ↻ 버튼으로 즉시 갱신합니다.
 - **상태 변경**: 상세의 상태 배지를 누르면 워크플로가 허용하는 전환 목록이 뜨고, 고르면
@@ -193,4 +220,4 @@ Docket/             SwiftUI — 팝오버와 윈도우가 같은 리스트를 �
 ```
 
 토큰은 Keychain에, 나머지 설정은 UserDefaults에, 티켓·스레드 캐시는 SwiftData에
-저장됩니다.
+저장됩니다. 라이선스는 [MIT](LICENSE)입니다.
