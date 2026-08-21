@@ -10,3 +10,6 @@ build/
 
 .DS_Store
 dist/
+
+# Local AI-plugin state; never part of the app.
+.mswai/
