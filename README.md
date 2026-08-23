@@ -102,7 +102,26 @@ PR 버튼을 쓰려면 필요합니다. 넣지 않으면 그 부분만 비고 �
 저장소에 기본 Slack 앱의 Client ID가 들어 있어 **대부분은 설정 → Slack 탭 → Slack
 연결만 누르면 됩니다.**
 
-워크스페이스 정책이 그 앱을 막거나 직접 만든 앱을 쓰고 싶을 때만 아래 절차를 따르세요.
+워크스페이스 정책이 그 앱을 막거나 직접 만든 앱을 쓰고 싶다면, 아래 두 방법 중
+하나를 따르세요.
+
+#### 방법 1 — 개인 앱의 토큰 붙여넣기 (설치판 그대로, 재빌드 없음)
+
+1. https://api.slack.com/apps → **Create New App** → **From a manifest** →
+   워크스페이스 선택 → `slack-app-manifest.yml` 붙여넣기
+2. 앱 대시보드에서 **Install to Workspace** → 브라우저에서 승인
+3. 설치가 끝나면 **OAuth & Permissions** 페이지에 표시되는
+   **User OAuth Token**(`xoxp-…`)을 복사
+4. Docket 설정 → Slack 탭 → **고급**에 토큰 붙여넣기
+
+이 경로는 PKCE·리다이렉트 설정이 아예 필요 없습니다. 토큰은 만료 없는 비회전
+토큰이며, 무효화하려면 Slack에서 앱을 삭제하면 됩니다.
+
+> [!CAUTION]
+> 개인 앱에서 **token rotation을 켜지 마세요.** 되돌릴 수 없고, 회전 토큰의 갱신에는
+> 이 앱이 갖고 있지 않은 client secret이 필요해집니다.
+
+#### 방법 2 — 소스 빌드에 자기 Client ID 넣기 (OAuth 연결 버튼 사용)
 
 1. https://api.slack.com/apps → **Create New App** → **From a manifest** →
    워크스페이스 선택 → `slack-app-manifest.yml` 붙여넣기.
@@ -150,9 +169,9 @@ PKCE를 켜면 Slack은 `token_rotation_enabled`가 `false`여도 **항상 회�
 > `SlackRedirectURL`을 비우면 기존처럼 localhost로 직접 돌아옵니다 — 위 manifest로 만든
 > 개인 앱은 그 조합을 씁니다.
 
-토큰은 본인 권한 그대로라 공개 채널 + 본인이 속한 비공개 채널/DM만 검색됩니다.
-OAuth를 쓸 수 없는 환경이라면 Slack 탭의 **고급**에서 `xoxp-` 토큰을 직접 넣을 수도
-있습니다.
+어느 경로든 토큰은 본인 권한 그대로라 공개 채널 + 본인이 속한 비공개 채널/DM만
+검색됩니다. 이미 OAuth로 연결된 상태에서 고급에 토큰을 붙여넣으면 그 연결을
+대체합니다.
 
 Slack을 설정하지 않아도 Jira 대시보드는 정상 동작합니다.
 

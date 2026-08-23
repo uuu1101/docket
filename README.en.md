@@ -110,8 +110,25 @@ either.
 The repository ships with a default Slack app's client ID, so **most people just press
 Connect Slack in settings → Slack tab.**
 
-Follow the steps below only when your workspace blocks that app or you want to run your
-own.
+When your workspace blocks that app, or you want to run your own, take one of the two
+routes below.
+
+#### Route 1 — paste your own app's token (works on the installed build, no rebuild)
+
+1. https://api.slack.com/apps → **Create New App** → **From a manifest** → pick your
+   workspace → paste `slack-app-manifest.yml`
+2. On the app's dashboard, press **Install to Workspace** and approve in the browser
+3. The **OAuth & Permissions** page then shows a **User OAuth Token** (`xoxp-…`) — copy it
+4. Docket settings → Slack tab → **Advanced** → paste the token
+
+This route needs no PKCE and no redirect URLs at all. The token is a non-expiring,
+non-rotating one; revoke it by deleting the app in Slack.
+
+> [!CAUTION]
+> Do not turn on **token rotation** for your app. It cannot be undone, and renewing a
+> rotated token requires a client secret this app does not carry.
+
+#### Route 2 — build from source with your own client ID (uses the Connect button)
 
 1. https://api.slack.com/apps → **Create New App** → **From a manifest** → pick your
    workspace → paste `slack-app-manifest.yml`.
@@ -160,9 +177,9 @@ tab → **Advanced**. It is stored in the Keychain only and never ships in the b
 > Leave `SlackRedirectURL` empty and the browser comes straight back to localhost — the
 > combination a personal app made from the manifest uses.
 
-The token carries your own permissions, so only public channels plus the private channels
-and DMs you are in can be read. If OAuth is impossible in your environment, an `xoxp-`
-token can be entered directly under Slack tab → **Advanced**.
+Whichever route, the token carries your own permissions, so only public channels plus
+the private channels and DMs you are in can be read. Pasting a token into Advanced while
+an OAuth connection exists replaces that connection.
 
 Jira works fine with Slack never configured.
 

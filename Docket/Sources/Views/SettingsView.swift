@@ -273,8 +273,17 @@ private struct SlackSettingsView: View {
             }
 
             Section(isExpanded: $showsAdvanced) {
-                SecureField(settings.strings.slackUserToken, text: $settings.slackUserToken)
-                    .accessibilityIdentifier("setting_input_slack_token")
+                // Through the manual-token path, not the raw property: pasting over an
+                // OAuth connection must also drop its rotation state, or the store tries
+                // to renew a token that has no refresh token of its own.
+                SecureField(
+                    settings.strings.slackUserToken,
+                    text: Binding(
+                        get: { settings.slackUserToken },
+                        set: { settings.applyManualSlackToken($0) }
+                    )
+                )
+                .accessibilityIdentifier("setting_input_slack_token")
                 Text(settings.strings.slackManualTokenHelp)
                     .font(.caption)
                     .foregroundStyle(.secondary)

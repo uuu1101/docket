@@ -186,6 +186,20 @@ public final class AppSettings {
         if credentials.teamID.isEmpty.not { slackTeamID = credentials.teamID }
     }
 
+    /// A hand-pasted token is a non-rotating one, whatever app it came from. Rotation
+    /// state left behind by an earlier OAuth connection must not outlive it — the token
+    /// store would see the stale expiry and try to renew with a refresh token that does
+    /// not belong to this token. The stale identity goes too; the next connection test
+    /// fills in the right one.
+    public func applyManualSlackToken(_ token: String) {
+        slackUserToken = token
+        slackTokenExpiresAt = nil
+        slackRefreshToken = ""
+        slackUserName = ""
+        slackTeamName = ""
+        slackTeamID = ""
+    }
+
     /// Fills in what `auth.test` knows and the stored credentials may not — a workspace
     /// connected before a field existed carries it from the next check onwards.
     public func applySlackIdentity(_ identity: SlackIdentity) {

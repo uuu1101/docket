@@ -50,6 +50,8 @@ There is no token to create. The Slack integration ships inside the app, so appr
 the browser is all it takes. It will show `Docket is connected` when it is done.
 
 > If your workspace requires admin approval for apps, the request goes to an admin first.
+> Where the Connect button is blocked, you can also paste your own Slack app's token under
+> Settings → Slack → Advanced — see "paste your own app's token" in the README.
 > Pasting thread links works without connecting too — the card keeps just the link, without
 > the message or reply count, and fills in automatically once you connect.
 

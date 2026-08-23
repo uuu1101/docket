@@ -397,3 +397,32 @@ struct RelayStateTests {
         #expect(state.hasSuffix(".53682"))
     }
 }
+
+@MainActor
+@Suite("Pasting a token by hand")
+struct ManualTokenTests {
+    @Test("A pasted token sheds the previous connection's rotation state and identity")
+    func pastedTokenClearsRotationState() {
+        let settings = AppSettings(
+            defaults: UserDefaults(suiteName: "dev.taetae.docket.tests.\(UUID().uuidString)")!,
+            keychain: KeychainStore(service: "dev.taetae.docket.tests.\(UUID().uuidString)")
+        )
+        settings.applySlackCredentials(SlackCredentials(
+            userToken: "xoxe.xoxp-1-old",
+            userID: "U1",
+            userName: "Theo",
+            teamName: "Acme",
+            teamID: "T1",
+            refreshToken: "xoxe-1-old",
+            expiresAt: Date().addingTimeInterval(43_200)
+        ))
+
+        settings.applyManualSlackToken("xoxp-manual")
+
+        #expect(settings.slackUserToken == "xoxp-manual")
+        #expect(settings.slackTokenExpiresAt == nil)
+        #expect(settings.slackRefreshToken.isEmpty)
+        #expect(settings.slackAccountLabel.isEmpty)
+        #expect(settings.isSlackConfigured)
+    }
+}
