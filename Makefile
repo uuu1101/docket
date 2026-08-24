@@ -18,7 +18,8 @@ help:
 	@echo "release   build, sign and package dist/Docket <version>.dmg"
 	@echo "clean     remove build output and dist/"
 	@echo ""
-	@echo "release honours SIGN_IDENTITY (default: - for ad-hoc) and CONFIGURATION."
+	@echo "release honours SIGN_IDENTITY (default: - for ad-hoc), NOTARY_PROFILE"
+	@echo "(notarizes and staples the DMG) and CONFIGURATION."
 
 generate:
 	tuist generate --no-open
