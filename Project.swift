@@ -41,7 +41,7 @@ let project = Project(
             infoPlist: .extendingDefault(with: [
                 "LSUIElement": true,
                 "CFBundleDisplayName": "Docket",
-                "CFBundleShortVersionString": "1.0",
+                "CFBundleShortVersionString": "1.0.0",
                 "CFBundleVersion": "1",
                 "NSHumanReadableCopyright": "",
                 // Not a secret: PKCE means no client secret ships with the app.

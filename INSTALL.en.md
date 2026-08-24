@@ -9,7 +9,7 @@ Figma files and pull requests attached to them — in one place.
 
 ## 1. Install
 
-1. Download **`Docket 1.0.dmg`** and open it
+1. Download **`Docket 1.0.0.dmg`** from the [latest release](https://github.com/uuu1101/docket/releases/latest) and open it
 2. **Drag the app onto the `Applications` folder** shown beside it
 3. Launch it. A checklist icon appears in your menu bar.
 
@@ -118,4 +118,4 @@ log show --predicate 'subsystem == "dev.taetae.docket"' --last 30m
 
 | Version | Date | Notes |
 |---|---|---|
-| 1.0 | 2026-08-19 | First release |
+| 1.0.0 | 2026-08-25 | First public release — notarized by Apple |

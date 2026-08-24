@@ -9,7 +9,7 @@ macOS 앱입니다.
 
 ## 1. 설치
 
-1. **`Docket 1.0.dmg` 다운로드** 후 더블클릭
+1. [최신 릴리스](https://github.com/uuu1101/docket/releases/latest)에서 **`Docket 1.0.0.dmg` 다운로드** 후 더블클릭
 2. 창이 열리면 **앱을 오른쪽 `Applications` 폴더로 드래그**
 3. 응용 프로그램에서 실행 → **메뉴바에 체크리스트 아이콘**이 생깁니다
 
@@ -112,4 +112,4 @@ log show --predicate 'subsystem == "dev.taetae.docket"' --last 30m
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
-| 1.0 | 2026-08-19 | 첫 배포 |
+| 1.0.0 | 2026-08-25 | 첫 공개 릴리스 — Apple 공증 빌드 |
